@@ -34,19 +34,19 @@ def run_research(
         progress_callback=progress_callback,
     )
 
-    # 快速检查本地舆情数据库是否有数据
+    # 快速检查本地电商数据库是否有数据
     try:
-        probe = ctx.execute_search("search_hot_content", query, time_period="year", limit=1)
+        probe = ctx.execute_search("search_products", query, limit=1)
         if not probe.results:
             raise RuntimeError(
-                "本地舆情数据库暂无数据，请先运行爬虫采集社交媒体数据。\n"
-                "提示: 确认 Docker MySQL 容器已启动，且至少有一张平台表（如 douyin_aweme）包含数据。"
+                "本地电商数据库暂无数据，请先导入商品与评论数据。\n"
+                "提示: 运行 tools/ecommerce/import_amazon.py 导入 Amazon Reviews 数据。"
             )
     except RuntimeError:
         raise
     except Exception as e:
         logger.warning(f"数据库连通性检查失败: {e}")
-        raise RuntimeError("无法连接到本地舆情数据库，请检查数据库配置（DB_HOST/DB_PORT/DB_USER/DB_NAME）。") from e
+        raise RuntimeError("无法连接到本地数据库，请检查数据库配置（DB_HOST/DB_PORT/DB_USER/DB_NAME）。") from e
 
     os.makedirs(config.OUTPUT_DIR, exist_ok=True)
 
