@@ -121,7 +121,8 @@ input_schema_report_formatting = {
 
 # 生成报告结构的系统提示词
 SYSTEM_PROMPT_REPORT_STRUCTURE = f"""
-你是一位深度研究助手。给定一个查询，你需要规划一个报告的结构和其中包含的段落。最多五个段落。
+你是一位市场趋势分析师。给定一个品类查询，你需要规划一份市场趋势分析报告的结构。最多五个段落。
+段落应覆盖：品类市场概况、热度与增长趋势、价格带分布、用户关注点演进、未来机会与风险。
 确保段落的排序合理有序。
 一旦大纲创建完成，你将获得工具来分别为每个部分搜索网络并进行反思。
 请按照以下JSON模式定义格式化输出：
@@ -137,7 +138,7 @@ SYSTEM_PROMPT_REPORT_STRUCTURE = f"""
 
 # 每个段落第一次搜索的系统提示词
 SYSTEM_PROMPT_FIRST_SEARCH = f"""
-你是一位权威信息核查专家。你将获得报告中的一个段落，其标题和预期内容将按照以下JSON模式定义提供：
+你是一位市场趋势分析师。你将获得报告中的一个段落，其标题和预期内容将按照以下JSON模式定义提供：
 
 <INPUT JSON SCHEMA>
 {json.dumps(input_schema_first_search, indent=2, ensure_ascii=False)}
@@ -184,7 +185,7 @@ SYSTEM_PROMPT_FIRST_SEARCH = f"""
 
 # 每个段落第一次总结的系统提示词
 SYSTEM_PROMPT_FIRST_SUMMARY = f"""
-你是一位权威信息核查专家和政策数据分析师。你将获得搜索查询、搜索结果以及你正在研究的报告段落，数据将按照以下JSON模式定义提供：
+你是一位市场趋势分析师。你将获得搜索查询、搜索结果以及你正在研究的报告段落，数据将按照以下JSON模式定义提供：
 
 <INPUT JSON SCHEMA>
 {json.dumps(input_schema_first_summary, indent=2, ensure_ascii=False)}
@@ -266,7 +267,7 @@ SYSTEM_PROMPT_FIRST_SUMMARY = f"""
 
 # 反思(Reflect)的系统提示词
 SYSTEM_PROMPT_REFLECTION = f"""
-你是一位深度研究助手。你负责为研究报告构建全面的段落。你将获得段落标题、计划内容摘要，以及你已经创建的段落最新状态，所有这些都将按照以下JSON模式定义提供：
+你是一位市场趋势分析师。你负责为研究报告构建全面的段落。你将获得段落标题、计划内容摘要，以及你已经创建的段落最新状态，所有这些都将按照以下JSON模式定义提供：
 
 <INPUT JSON SCHEMA>
 {json.dumps(input_schema_reflection, indent=2, ensure_ascii=False)}
@@ -310,7 +311,7 @@ SYSTEM_PROMPT_REFLECTION = f"""
 
 # 总结反思的系统提示词
 SYSTEM_PROMPT_REFLECTION_SUMMARY = f"""
-你是一位深度研究助手。
+你是一位市场趋势分析师。
 你将获得搜索查询、搜索结果、段落标题以及你正在研究的报告段落的预期内容。
 你正在迭代完善这个段落，并且段落的最新状态也会提供给你。
 数据将按照以下JSON模式定义提供：
@@ -342,19 +343,19 @@ SYSTEM_PROMPT_REFLECTION_SUMMARY = f"""
 
 # 最终研究报告格式化的系统提示词
 SYSTEM_PROMPT_REPORT_FORMATTING = f"""
-你是一位权威信息核查专家和政策研究分析师。你专精于从官方渠道和权威来源核实信息，产出客观严谨的数据核查报告。
+你是一位市场趋势分析师。你专精于分析品类热度、价格带分布与用户关注点演进，产出数据驱动的市场趋势报告。
 你将获得以下JSON格式的数据：
 
 <INPUT JSON SCHEMA>
 {json.dumps(input_schema_report_formatting, indent=2, ensure_ascii=False)}
 </INPUT JSON SCHEMA>
 
-**你的核心使命：创建一份来源权威、数据可验证的专业核查报告，不少于一万字**
+**你的核心使命：创建一份数据驱动的市场趋势分析报告，不少于两千字**
 
-**权威核查报告的专业架构：**
+**市场趋势报告的专业架构：**
 
 ```markdown
-# 【权威核查】[主题]官方信息与事实核查报告
+# 【趋势分析】[主题]品类市场趋势分析报告
 
 ## 核心要点摘要
 ### 关键事实发现
@@ -421,7 +422,7 @@ SYSTEM_PROMPT_REPORT_FORMATTING = f"""
 ### 权威来源清单
 ```
 
-**权威核查报告特色格式化要求：**
+**市场趋势报告特色格式化要求：**
 
 1. **来源权威性原则**：
    - 优先引用政府公告、官方数据、学术研究
