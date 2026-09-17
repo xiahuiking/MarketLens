@@ -89,6 +89,20 @@ def generate_report(
         'trend': 'data/report/trend',
     })
 
+    # 阶段5：可视化数据（评分/情感/趋势/竞品/方面情感）。容错：失败仅跳过数据图表。
+    visualization_bundles = []
+    prebuilt_widgets = []
+    try:
+        from .visualization import get_visualization_provider
+        provider = get_visualization_provider()
+        visualization_bundles = provider.build_bundles(query)
+        prebuilt_widgets = provider.build_widgets(query)
+        logger.info(
+            f"可视化数据就绪: bundles={len(visualization_bundles)}, widgets={len(prebuilt_widgets)}"
+        )
+    except Exception as exc:  # pragma: no cover - 数据库/依赖异常不应阻断报告
+        logger.warning(f"可视化数据生成失败，跳过数据图表: {exc}")
+
     initial_state = {
         "query": query,
         "reports": reports,
@@ -96,6 +110,8 @@ def generate_report(
         "custom_template": custom_template,
         "save_report": save_report,
         "report_id": rid,
+        "visualization_bundles": visualization_bundles,
+        "prebuilt_widgets": prebuilt_widgets,
     }
 
     try:

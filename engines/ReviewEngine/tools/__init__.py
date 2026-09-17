@@ -23,6 +23,13 @@ from .sentiment_analyzer import (
     analyze_sentiment
 )
 from .clustering import ClusteringService
+from .aspect_sentiment import (
+    AspectSentimentAnalyzer,
+    AspectSentiment,
+    AspectSentimentSummary,
+    aspect_sentiment_analyzer,
+    analyze_aspect_sentiment,
+)
 
 __all__ = [
     "ProductReviewDB",
@@ -39,4 +46,9 @@ __all__ = [
     "multilingual_sentiment_analyzer",
     "analyze_sentiment",
     "ClusteringService",
+    "AspectSentimentAnalyzer",
+    "AspectSentiment",
+    "AspectSentimentSummary",
+    "aspect_sentiment_analyzer",
+    "analyze_aspect_sentiment",
 ]

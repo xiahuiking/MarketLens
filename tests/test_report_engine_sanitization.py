@@ -62,12 +62,12 @@ class ChapterSanitizationTestCase(unittest.TestCase):
             "blocks": [
                 {
                     "type": "engineQuote",
-                    "engine": "insight",
-                    "title": "Insight Agent",
+                    "engine": "review",
+                    "title": "口碑 Agent",
                     "blocks": [
                         {
                             "type": "paragraph",
-                            "inlines": [{"text": "来自 Insight Engine 的观点"}],
+                            "inlines": [{"text": "来自口碑 Agent 的观点"}],
                         }
                     ],
                 }
@@ -87,8 +87,8 @@ class ChapterSanitizationTestCase(unittest.TestCase):
             "blocks": [
                 {
                     "type": "engineQuote",
-                    "engine": "media",
-                    "title": "Media Agent",
+                    "engine": "competitor",
+                    "title": "竞品 Agent",
                     "blocks": [
                         {"type": "math", "latex": "x=y"},
                         {
@@ -111,7 +111,7 @@ class ChapterSanitizationTestCase(unittest.TestCase):
             "blocks": [
                 {
                     "type": "engineQuote",
-                    "engine": "query",
+                    "engine": "trend",
                     "blocks": [
                         {"type": "list", "items": [["非法"]]},
                         {
@@ -131,7 +131,7 @@ class ChapterSanitizationTestCase(unittest.TestCase):
         node._sanitize_chapter_blocks(chapter)
         eq_block = chapter["blocks"][0]
         self.assertEqual(eq_block["type"], "engineQuote")
-        self.assertEqual(eq_block.get("title"), "Query Agent")
+        self.assertEqual(eq_block.get("title"), "趋势 Agent")
         inner_blocks = eq_block.get("blocks")
         self.assertTrue(all(b.get("type") == "paragraph" for b in inner_blocks))
         marks = inner_blocks[0]["inlines"][0].get("marks")
@@ -149,8 +149,8 @@ class ChapterSanitizationTestCase(unittest.TestCase):
             "blocks": [
                 {
                     "type": "engineQuote",
-                    "engine": "query",
-                    "title": "Media Agent",
+                    "engine": "trend",
+                    "title": "竞品 Agent",
                     "blocks": [
                         {
                             "type": "paragraph",
