@@ -3,7 +3,7 @@ Report Engine default LLM client wrapper.
 Re-exports the shared LLMClient from engines/common.
 """
 
-from common.llm_client import LLMClient as _LLMClient
+from engines.common.llm_client import LLMClient as _LLMClient
 
 
 class LLMClient(_LLMClient):
