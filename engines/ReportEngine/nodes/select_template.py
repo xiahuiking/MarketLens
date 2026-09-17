@@ -58,7 +58,7 @@ class SelectTemplateNode(BaseNode):
             return {"template_result": result}
         except Exception as e:
             logger.error(f"模板选择失败，使用默认模板: {e}")
-            fallback = {"template_name": "社会公共热点事件分析报告模板", "template_content": _fallback_content(), "selection_reason": "模板选择失败，使用默认模板"}
+            fallback = {"template_name": "商品口碑分析报告模板", "template_content": _fallback_content(), "selection_reason": "模板选择失败，使用默认模板"}
             return {"template_result": fallback}
 
     def run(self, input_data: Dict[str, Any], **kwargs) -> Dict[str, Any]:
@@ -274,18 +274,18 @@ class SelectTemplateNode(BaseNode):
     
     def _extract_template_description(self, template_name: str) -> str:
         """根据模板名称生成描述，方便LLM理解模板定位。"""
-        if '企业品牌' in template_name:
-            return "适用于企业品牌声誉和形象分析"
-        elif '市场竞争' in template_name:
-            return "适用于市场竞争格局和对手分析"
-        elif '日常' in template_name or '定期' in template_name:
-            return "适用于日常监测和定期汇报"
-        elif '政策' in template_name or '行业' in template_name:
-            return "适用于政策影响和行业动态分析"
-        elif '热点' in template_name or '社会' in template_name:
-            return "适用于社会热点和公共事件分析"
-        elif '突发' in template_name or '危机' in template_name:
-            return "适用于突发事件和危机公关"
+        if '商品口碑' in template_name:
+            return "适用于单商品/单品牌的评分、评论情感、优缺点与口碑归因分析"
+        elif '竞品对比' in template_name:
+            return "适用于多商品横向对比：价格、评分、口碑与卖点差异分析"
+        elif '日常' in template_name or '监测' in template_name:
+            return "适用于商品评论的常态化监测与定期汇报"
+        elif '趋势' in template_name or '行业' in template_name or '品类' in template_name:
+            return "适用于品类热度、价格带与行业趋势洞察"
+        elif '热点' in template_name or '爆款' in template_name:
+            return "适用于品类热点与爆款商品的成因与机会分析"
+        elif '负面' in template_name or '危机' in template_name:
+            return "适用于负面口碑事件与评分危机的响应处置"
         
         return "通用报告模板"
     
@@ -308,7 +308,7 @@ class SelectTemplateNode(BaseNode):
 
 
 def _fallback_content() -> str:
-    return """# 社会公共热点事件分析报告\n## 执行摘要\n本报告针对当前社会热点事件进行综合分析。\n## 事件概况\n### 基本信息\n## 舆情态势分析\n### 整体趋势\n## 结论与展望\n---\n*报告类型：社会公共热点事件分析*\n"""
+    return """# 商品口碑分析报告\n## 执行摘要\n本报告针对目标商品的用户评论进行综合分析。\n## 商品概况\n### 基本信息\n## 口碑态势分析\n### 整体趋势\n## 结论与展望\n---\n*报告类型：商品口碑分析*\n"""
 
 
 __all__ = ["SelectTemplateNode"]
