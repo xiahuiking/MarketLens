@@ -1469,7 +1469,7 @@ class GenerateChaptersNode(BaseNode):
         engine_raw = block.get("engine")
         engine = engine_raw.lower() if isinstance(engine_raw, str) else None
         if engine not in ENGINE_AGENT_TITLES:
-            engine = "insight"
+            engine = "review"
         block["engine"] = engine
         block["title"] = ENGINE_AGENT_TITLES[engine]
         allowed_marks = {"bold", "italic"}

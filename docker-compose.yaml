@@ -50,17 +50,17 @@ services:
       - DB_NAME=${DB_NAME:-media_crawler}
       - DB_CHARSET=${DB_CHARSET:-utf8mb4}
       # Insight Engine (Kimi K2)
-      - INSIGHT_ENGINE_API_KEY=${INSIGHT_ENGINE_API_KEY:-}
-      - INSIGHT_ENGINE_BASE_URL=${INSIGHT_ENGINE_BASE_URL:-https://api.moonshot.cn/v1}
-      - INSIGHT_ENGINE_MODEL_NAME=${INSIGHT_ENGINE_MODEL_NAME:-kimi-k2-0711-preview}
+      - REVIEW_ENGINE_API_KEY=${REVIEW_ENGINE_API_KEY:-}
+      - REVIEW_ENGINE_BASE_URL=${REVIEW_ENGINE_BASE_URL:-https://api.moonshot.cn/v1}
+      - REVIEW_ENGINE_MODEL_NAME=${REVIEW_ENGINE_MODEL_NAME:-kimi-k2-0711-preview}
       # Media Engine (Gemini 2.5 Pro)
-      - MEDIA_ENGINE_API_KEY=${MEDIA_ENGINE_API_KEY:-}
-      - MEDIA_ENGINE_BASE_URL=${MEDIA_ENGINE_BASE_URL:-https://aihubmix.com/v1}
-      - MEDIA_ENGINE_MODEL_NAME=${MEDIA_ENGINE_MODEL_NAME:-gemini-2.5-pro}
+      - COMPETITOR_ENGINE_API_KEY=${COMPETITOR_ENGINE_API_KEY:-}
+      - COMPETITOR_ENGINE_BASE_URL=${COMPETITOR_ENGINE_BASE_URL:-https://aihubmix.com/v1}
+      - COMPETITOR_ENGINE_MODEL_NAME=${COMPETITOR_ENGINE_MODEL_NAME:-gemini-2.5-pro}
       # Query Engine (DeepSeek)
-      - QUERY_ENGINE_API_KEY=${QUERY_ENGINE_API_KEY:-}
-      - QUERY_ENGINE_BASE_URL=${QUERY_ENGINE_BASE_URL:-https://api.deepseek.com}
-      - QUERY_ENGINE_MODEL_NAME=${QUERY_ENGINE_MODEL_NAME:-deepseek-chat}
+      - TREND_ENGINE_API_KEY=${TREND_ENGINE_API_KEY:-}
+      - TREND_ENGINE_BASE_URL=${TREND_ENGINE_BASE_URL:-https://api.deepseek.com}
+      - TREND_ENGINE_MODEL_NAME=${TREND_ENGINE_MODEL_NAME:-deepseek-chat}
       # Report Engine (Gemini 2.5 Pro)
       - REPORT_ENGINE_API_KEY=${REPORT_ENGINE_API_KEY:-}
       - REPORT_ENGINE_BASE_URL=${REPORT_ENGINE_BASE_URL:-https://aihubmix.com/v1}

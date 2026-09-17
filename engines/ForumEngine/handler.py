@@ -48,7 +48,7 @@ class ForumEventHandler:
         if event_type == EventType.SUMMARY_READY:
             self._handle_summary(data)
 
-    KNOWN_SOURCES = {'insight', 'media', 'query'}
+    KNOWN_SOURCES = {'review', 'competitor', 'trend'}
 
     def _handle_summary(self, data: Dict):
         source = data.get("source", "").strip().lower()

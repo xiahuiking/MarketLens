@@ -48,9 +48,9 @@ ALLOWED_BLOCK_TYPES: List[str] = [
 ]
 
 ENGINE_AGENT_TITLES: Dict[str, str] = {
-    "insight": "Insight Agent",
-    "media": "Media Agent",
-    "query": "Query Agent",
+    "review": "口碑 Agent",
+    "competitor": "竞品 Agent",
+    "trend": "趋势 Agent",
 }
 
 # ====== Schema定义 ======
@@ -322,7 +322,7 @@ engine_quote_block: Dict[str, Any] = {
     "type": "object",
     "properties": {
         "type": {"const": "engineQuote"},
-        "engine": {"type": "string", "enum": ["insight", "media", "query"]},
+        "engine": {"type": "string", "enum": ["review", "competitor", "trend"]},
         "title": {"type": "string"},
         "blocks": {
             "type": "array",
@@ -332,16 +332,16 @@ engine_quote_block: Dict[str, Any] = {
     "required": ["type", "engine", "blocks", "title"],
     "allOf": [
         {
-            "if": {"properties": {"engine": {"const": "insight"}}},
-            "then": {"properties": {"title": {"const": ENGINE_AGENT_TITLES["insight"]}}},
+            "if": {"properties": {"engine": {"const": "review"}}},
+            "then": {"properties": {"title": {"const": ENGINE_AGENT_TITLES["review"]}}},
         },
         {
-            "if": {"properties": {"engine": {"const": "media"}}},
-            "then": {"properties": {"title": {"const": ENGINE_AGENT_TITLES["media"]}}},
+            "if": {"properties": {"engine": {"const": "competitor"}}},
+            "then": {"properties": {"title": {"const": ENGINE_AGENT_TITLES["competitor"]}}},
         },
         {
-            "if": {"properties": {"engine": {"const": "query"}}},
-            "then": {"properties": {"title": {"const": ENGINE_AGENT_TITLES["query"]}}},
+            "if": {"properties": {"engine": {"const": "trend"}}},
+            "then": {"properties": {"title": {"const": ENGINE_AGENT_TITLES["trend"]}}},
         },
     ],
     "additionalProperties": True,
