@@ -17,34 +17,32 @@ def execute_search_and_convert(
     """
     kwargs: Dict[str, Any] = {}
 
-    if search_tool in ("search_topic_by_date", "search_topic_on_platform"):
+    # 电商工具参数处理
+    if search_tool == "get_review_trend":
         start = search_output.get("start_date")
         end = search_output.get("end_date")
-        if start and end:
-            if ctx.validate_date_format(start) and ctx.validate_date_format(end):
-                kwargs["start_date"] = start
-                kwargs["end_date"] = end
-            else:
-                search_tool = "search_topic_globally"
-        elif search_tool == "search_topic_by_date":
-            search_tool = "search_topic_globally"
-
-    if search_tool == "search_topic_on_platform":
-        platform = search_output.get("platform")
-        if platform:
-            kwargs["platform"] = platform
+        if start and end and ctx.validate_date_format(start) and ctx.validate_date_format(end):
+            kwargs["start_date"] = start
+            kwargs["end_date"] = end
         else:
-            search_tool = "search_topic_globally"
+            logger.warning("get_review_trend 缺少合法日期，回退到 get_product_reviews")
+            search_tool = "get_product_reviews"
+    elif search_tool == "compare_products":
+        queries = search_output.get("product_queries") or [search_query]
+        kwargs["product_queries"] = queries
+    elif search_tool == "analyze_sentiment":
+        texts = search_output.get("texts")
+        if texts:
+            kwargs["texts"] = texts
+        else:
+            search_tool = "get_product_reviews"
 
-    if search_tool == "search_hot_content":
-        kwargs["time_period"] = search_output.get("time_period", "week")
-        kwargs["limit"] = ctx.config.DEFAULT_SEARCH_HOT_CONTENT_LIMIT
-    elif search_tool in ("search_topic_globally", "search_topic_by_date"):
-        key = "DEFAULT_SEARCH_TOPIC_GLOBALLY_LIMIT_PER_TABLE" if search_tool == "search_topic_globally" else "DEFAULT_SEARCH_TOPIC_BY_DATE_LIMIT_PER_TABLE"
-        kwargs["limit_per_table"] = getattr(ctx.config, key)
-    elif search_tool in ("get_comments_for_topic", "search_topic_on_platform"):
-        key = "DEFAULT_GET_COMMENTS_FOR_TOPIC_LIMIT" if search_tool == "get_comments_for_topic" else "DEFAULT_SEARCH_TOPIC_ON_PLATFORM_LIMIT"
-        kwargs["limit"] = getattr(ctx.config, key)
+    if search_tool == "search_products":
+        kwargs["limit"] = 50
+    elif search_tool == "get_product_reviews":
+        kwargs["limit"] = 100
+    elif search_tool == "get_top_complaints":
+        kwargs["limit"] = 50
 
     logger.info("  - 执行数据库查询...")
     response = ctx.execute_search(search_tool, search_query, **kwargs)
