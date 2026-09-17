@@ -24,13 +24,13 @@ class ReportStructure(BaseModel):
 # ── Search query (initial_search / reflection_search nodes) ───────
 
 class SearchOutput(BaseModel):
-    search_query: str = Field(description="搜索查询词")
+    search_query: str = Field(description="搜索查询词（商品名/品牌/品类词）")
     search_tool: str = Field(description="搜索工具名称")
     reasoning: str = Field(description="选择理由")
-    start_date: Optional[str] = Field(default=None, description="开始日期 YYYY-MM-DD，仅 search_topic_by_date")
-    end_date: Optional[str] = Field(default=None, description="结束日期 YYYY-MM-DD，仅 search_topic_by_date")
-    platform: Optional[str] = Field(default=None, description="平台名，仅 search_topic_on_platform")
-    time_period: Optional[str] = Field(default=None, description="时间范围，仅 search_hot_content")
+    start_date: Optional[str] = Field(default=None, description="开始日期 YYYY-MM-DD，仅 get_review_trend")
+    end_date: Optional[str] = Field(default=None, description="结束日期 YYYY-MM-DD，仅 get_review_trend")
+    product_queries: Optional[List[str]] = Field(default=None, description="商品名列表，仅 compare_products")
+    texts: Optional[List[str]] = Field(default=None, description="文本列表，仅 analyze_sentiment")
 
 
 # ── Initial summary (initial_summary node) ────────────────────────

@@ -40,7 +40,7 @@ class ReflectionSearchNode:
             )
         except Exception:
             logger.exception("结构化反思搜索输出失败，使用默认")
-            out = SearchOutput(search_query="深度研究补充信息", search_tool="search_topic_globally", reasoning="默认反思搜索")
+            out = SearchOutput(search_query="商品口碑补充分析", search_tool="get_product_reviews", reasoning="默认反思搜索")
 
         search_query = out.search_query
         search_tool = out.search_tool
