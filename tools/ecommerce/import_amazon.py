@@ -1,18 +1,22 @@
 """
 Amazon Reviews 2023 数据导入脚本（MarketLens）。
 
-将 McAuley lab 的 Amazon Reviews 2023 JSONL 导入本地 MySQL。
+将 McAuley lab 的 Amazon Reviews 2023 JSONL(.gz) 导入本地 MySQL。
 
-数据格式（每行一个 JSON 对象）：
-- meta 文件（meta_<Category>.jsonl）：
-    main_category, title, average_rating, rating_number, price, store, parent_asin, ...
-- review 文件（<Category>_5.jsonl）：
-    rating, title, text, asin, parent_asin, user_id, timestamp(ms), helpful_vote, verified_purchase, ...
+下载地址（Electronics 品类）：
+- 评论: https://mcauleylab.ucsd.edu/public_datasets/data/amazon_2023/raw/review_categories/Electronics.jsonl.gz
+- 元数据: https://mcauleylab.ucsd.edu/public_datasets/data/amazon_2023/raw/meta_categories/meta_Electronics.jsonl.gz
+- HuggingFace 镜像: https://huggingface.co/datasets/McAuley-Lab/Amazon-Reviews-2023
+
+数据格式（每行一个 JSON 对象，支持 .jsonl 与 .jsonl.gz）：
+- meta 文件：main_category, title, average_rating, rating_number, price, store, parent_asin, ...
+- review 文件：rating, title, text, asin, parent_asin, user_id, timestamp(ms), helpful_vote, verified_purchase, ...
 
 用法示例：
     python tools/ecommerce/import_amazon.py \
-        --meta data/amazon/meta_Electronics.jsonl \
-        --reviews data/amazon/Electronics_5.jsonl
+        --meta data/amazon/meta_Electronics.jsonl.gz \
+        --reviews data/amazon/Electronics.jsonl.gz \
+        --limit 200000   # 可选：每个文件最多导入行数（demo 建议限流，避免全量 43.9M 评论）
 
 说明：
 - product 表以 parent_asin 为商品标识（ON DUPLICATE KEY UPDATE 幂等可重跑）
@@ -22,6 +26,7 @@ Amazon Reviews 2023 数据导入脚本（MarketLens）。
 from __future__ import annotations
 
 import argparse
+import gzip
 import json
 import sys
 from pathlib import Path
@@ -110,7 +115,9 @@ REVIEW_INSERT_SQL = """
 
 
 def _read_jsonl(path: Path, limit: Optional[int] = None):
-    with open(path, "r", encoding="utf-8", errors="ignore") as f:
+    """逐行读取 JSONL，自动识别 .gz 压缩。"""
+    opener = gzip.open if str(path).endswith(".gz") else open
+    with opener(path, "rt", encoding="utf-8", errors="ignore") as f:
         for i, line in enumerate(f):
             if limit is not None and i >= limit:
                 break
@@ -173,8 +180,8 @@ def import_reviews(conn: pymysql.Connection, reviews_path: Path, limit: Optional
                 _safe_str(obj.get("title")),
                 _safe_str(obj.get("text")),
                 1 if obj.get("verified_purchase") else 0,
-                _norm_int(obj.get("helpful_vote")) or 0,
-                _norm_int(obj.get("timestamp")),
+                _norm_int(obj.get("helpful_vote", obj.get("helpful_votes"))) or 0,
+                _norm_int(obj.get("timestamp", obj.get("sort_timestamp"))),
             ))
             if len(rows) >= 500:
                 cur.executemany(REVIEW_INSERT_SQL, rows)
