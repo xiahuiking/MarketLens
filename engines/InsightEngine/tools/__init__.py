@@ -4,7 +4,7 @@
 """
 
 from .search import (
-    MediaCrawlerDB,
+    ProductReviewDB,
     QueryResult,
     DBResponse,
     print_response_summary
@@ -25,7 +25,7 @@ from .sentiment_analyzer import (
 from .clustering import ClusteringService
 
 __all__ = [
-    "MediaCrawlerDB",
+    "ProductReviewDB",
     "QueryResult",
     "DBResponse",
     "print_response_summary",
