@@ -115,19 +115,27 @@ REVIEW_INSERT_SQL = """
 
 
 def _read_jsonl(path: Path, limit: Optional[int] = None):
-    """逐行读取 JSONL，自动识别 .gz 压缩。"""
+    """逐行读取 JSONL，自动识别 .gz 压缩。
+
+    对截断的 .gz（例如只下载了前 N 字节用于快速 demo）做容错：
+    解压到截断点前已完整读出的行照常 yield，之后优雅停止。
+    """
     opener = gzip.open if str(path).endswith(".gz") else open
     with opener(path, "rt", encoding="utf-8", errors="ignore") as f:
-        for i, line in enumerate(f):
-            if limit is not None and i >= limit:
-                break
-            line = line.strip()
-            if not line:
-                continue
-            try:
-                yield json.loads(line)
-            except json.JSONDecodeError:
-                continue
+        try:
+            for i, line in enumerate(f):
+                if limit is not None and i >= limit:
+                    break
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    yield json.loads(line)
+                except json.JSONDecodeError:
+                    continue
+        except EOFError:
+            # 截断的 gzip 流：已读出的完整行已处理，直接结束
+            return
 
 
 def import_meta(conn: pymysql.Connection, meta_path: Path, limit: Optional[int] = None) -> int:
