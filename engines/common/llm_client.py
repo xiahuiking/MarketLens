@@ -6,11 +6,11 @@ import os
 import sys
 from datetime import datetime
 from typing import Any, Dict, Optional, Generator
-from langchain_deepseek import ChatDeepSeek
-from loguru import logger
-
-from openai import OpenAI
 from uuid import uuid4
+
+from loguru import logger
+from openai import OpenAI
+
 # Ensure app/utils/ (containing retry_helper) is importable
 _current_dir = os.path.dirname(os.path.abspath(__file__))
 _app_utils = os.path.join(os.path.dirname(os.path.dirname(_current_dir)), "app", "utils")
