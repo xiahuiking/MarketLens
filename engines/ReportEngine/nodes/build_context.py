@@ -24,6 +24,9 @@ class BuildContextNode:
             if cid:
                 chapters_map[cid] = entry
 
+        # 阶段5：把可视化数据摘要（dataBundles）注入生成上下文，供 LLM 生成真实图表
+        visualization_bundles = state.get("visualization_bundles", []) or []
+
         ctx = {
             "query": query,
             "template_name": template_result.get("template_name"),
@@ -31,7 +34,7 @@ class BuildContextNode:
             "forum_logs": _stringify(forum_logs),
             "theme_tokens": theme,
             "style_directives": {"tone": "analytical", "audience": "executive", "language": "zh-CN"},
-            "data_bundles": [],
+            "data_bundles": visualization_bundles,
             "max_tokens": min(self.ctx.config.MAX_CONTENT_LENGTH, 6000),
             "layout": layout or {},
             "template_overview": template_overview or {},

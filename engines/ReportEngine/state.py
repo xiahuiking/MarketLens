@@ -14,6 +14,9 @@ class ReportGraphState(TypedDict, total=False):
     save_report: bool
     report_id: str
     stream_handler: Optional[Callable]
+    # 可视化（阶段5）：结构化数据摘要 + 预构建图表 widget
+    visualization_bundles: list
+    prebuilt_widgets: list
     # Pipeline
     template_result: dict
     template_sections: list
