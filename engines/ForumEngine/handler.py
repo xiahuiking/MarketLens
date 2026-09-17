@@ -49,6 +49,7 @@ class ForumEventHandler:
             self._handle_summary(data)
 
     KNOWN_SOURCES = {'review', 'competitor', 'trend'}
+    SOURCE_TITLES = {'review': '口碑 Agent', 'competitor': '竞品 Agent', 'trend': '趋势 Agent'}
 
     def _handle_summary(self, data: Dict):
         source = data.get("source", "").strip().lower()
@@ -72,7 +73,7 @@ class ForumEventHandler:
 
             publish(EventType.FORUM_MESSAGE, {
                 "type": "agent",
-                "sender": f"{source.title()} Engine",
+                "sender": self.SOURCE_TITLES.get(source, source.title()),
                 "content": summary,
                 "source": source,
                 "timestamp": datetime.now().strftime('%H:%M:%S'),

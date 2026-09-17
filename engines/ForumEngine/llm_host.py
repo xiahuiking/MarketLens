@@ -103,7 +103,7 @@ class ForumHost:
                     continue
                 
                 # 记录agent发言
-                if speaker in ['INSIGHT', 'MEDIA', 'QUERY']:
+                if speaker in ['REVIEW', 'COMPETITOR', 'TREND']:
                     # 处理转义的换行符
                     content = content.replace('\\n', '\n')
                     

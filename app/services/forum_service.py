@@ -24,7 +24,7 @@ MAX_FORUM_MESSAGES = 2000
 _forum_messages: List[Dict[str, Any]] = []
 
 
-_KNOWN_SENDERS = {'Insight Engine', 'Media Engine', 'Query Engine', 'Forum Host'}
+_KNOWN_SENDERS = {'口碑 Agent', '竞品 Agent', '趋势 Agent', 'Forum Host'}
 
 def _on_forum_message(event_type: str, data: Dict[str, Any]):
     """Listen to FORUM_MESSAGE events and accumulate in memory."""
@@ -108,7 +108,7 @@ def parse_forum_log_line(line: str) -> Optional[Dict[str, Any]]:
 
     if source == 'SYSTEM' or not content.strip():
         return None
-    if source not in ['QUERY', 'INSIGHT', 'MEDIA', 'HOST']:
+    if source not in ['REVIEW', 'COMPETITOR', 'TREND', 'HOST']:
         return None
 
     cleaned_content = content.replace('\\n', '\n').replace('\\r', '').strip()
@@ -118,7 +118,7 @@ def parse_forum_log_line(line: str) -> Optional[Dict[str, Any]]:
         sender = 'Forum Host'
     else:
         message_type = 'agent'
-        sender = f'{source.title()} Engine'
+        sender = {'REVIEW': '口碑 Agent', 'COMPETITOR': '竞品 Agent', 'TREND': '趋势 Agent'}[source]
 
     return {
         'type': message_type,

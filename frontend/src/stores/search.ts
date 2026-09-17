@@ -44,9 +44,9 @@ export const useSearchStore = defineStore('search', () => {
   const lastResult = ref<any>(null)
 
   const engines = reactive<Record<string, EngineState>>({
-    insight: emptyEngineState(),
-    media: emptyEngineState(),
-    query: emptyEngineState(),
+    review: emptyEngineState(),
+    competitor: emptyEngineState(),
+    trend: emptyEngineState(),
   })
 
   function resetEngine(engine: string) {
@@ -96,9 +96,9 @@ export const useSearchStore = defineStore('search', () => {
     query.value = q
     searching.value = true
     // Reset all engines for new search
-    resetEngine('insight')
-    resetEngine('media')
-    resetEngine('query')
+    resetEngine('review')
+    resetEngine('competitor')
+    resetEngine('trend')
     try {
       const res = await searchApi.search(q)
       lastResult.value = res.data

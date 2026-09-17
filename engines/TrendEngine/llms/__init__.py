@@ -1,5 +1,5 @@
 """
-LLM module for the Query Engine.
+LLM module for the Trend Engine.
 """
 
 from .base import LLMClient

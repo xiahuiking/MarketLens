@@ -33,7 +33,7 @@ def generate_report(
 
     Args:
         query: Report topic/question.
-        reports: Reports from Query/Media/Insight engines.
+        reports: Reports from 趋势/竞品/口碑 engines.
         forum_logs: Forum discussion text.
         custom_template: Optional custom Markdown template.
         save_report: Persist HTML/IR/state to disk.
@@ -62,8 +62,8 @@ def generate_report(
         rescue_clients.append(("report_engine", llm_client))
     fallback_specs = [
         ("forum_engine", cfg.FORUM_HOST_API_KEY, cfg.FORUM_HOST_MODEL_NAME, cfg.FORUM_HOST_BASE_URL),
-        ("insight_engine", cfg.REVIEW_ENGINE_API_KEY, cfg.REVIEW_ENGINE_MODEL_NAME, cfg.REVIEW_ENGINE_BASE_URL),
-        ("media_engine", cfg.COMPETITOR_ENGINE_API_KEY, cfg.COMPETITOR_ENGINE_MODEL_NAME, cfg.COMPETITOR_ENGINE_BASE_URL),
+        ("review_engine", cfg.REVIEW_ENGINE_API_KEY, cfg.REVIEW_ENGINE_MODEL_NAME, cfg.REVIEW_ENGINE_BASE_URL),
+        ("competitor_engine", cfg.COMPETITOR_ENGINE_API_KEY, cfg.COMPETITOR_ENGINE_MODEL_NAME, cfg.COMPETITOR_ENGINE_BASE_URL),
     ]
     for label, ak, mn, bu in fallback_specs:
         if ak and mn:

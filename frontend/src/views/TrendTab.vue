@@ -1,6 +1,6 @@
 <template>
   <div class="tab-content">
-    <EnginePanel engine="query" />
+    <EnginePanel engine="trend" />
   </div>
 </template>
 

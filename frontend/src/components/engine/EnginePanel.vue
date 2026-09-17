@@ -64,11 +64,11 @@ import { marked } from 'marked'
 import { useSearchStore, type EngineState } from '@/stores/search'
 
 const props = withDefaults(defineProps<{
-  engine: 'insight' | 'media' | 'query'
+  engine: 'review' | 'competitor' | 'trend'
 }>(), {})
 
 const engineLabel = computed(() => {
-  const labels: Record<string, string> = { insight: 'Insight Agent', media: 'Media Agent', query: 'Query Agent' }
+  const labels: Record<string, string> = { review: '口碑 Agent', competitor: '竞品 Agent', trend: '趋势 Agent' }
   return labels[props.engine] || props.engine
 })
 

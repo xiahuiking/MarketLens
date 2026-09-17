@@ -16,9 +16,9 @@ import { useSystemStore } from '@/stores/system'
 import * as appsApi from '@/api/apps'
 import AppShell from '@/components/layout/AppShell.vue'
 import ConfigModal from '@/components/config/ConfigModal.vue'
-import InsightTab from './InsightTab.vue'
-import MediaTab from './MediaTab.vue'
-import QueryTab from './QueryTab.vue'
+import ReviewTab from './ReviewTab.vue'
+import CompetitorTab from './CompetitorTab.vue'
+import TrendTab from './TrendTab.vue'
 import ForumTab from './ForumTab.vue'
 import ReportTab from './ReportTab.vue'
 
@@ -28,14 +28,14 @@ const systemStore = useSystemStore()
 const activeTab = computed(() => appsStore.activeApp)
 
 const tabComponents: Record<string, any> = {
-  insight: InsightTab,
-  media: MediaTab,
-  query: QueryTab,
+  review: ReviewTab,
+  competitor: CompetitorTab,
+  trend: TrendTab,
   forum: ForumTab,
   report: ReportTab,
 }
 
-const activeComponent = computed(() => tabComponents[activeTab.value] || InsightTab)
+const activeComponent = computed(() => tabComponents[activeTab.value] || ReviewTab)
 
 async function handleRefresh() {
   try {

@@ -9,23 +9,23 @@ export interface AppInfo {
 
 export const useAppsStore = defineStore('apps', () => {
   const apps = reactive<Record<string, AppInfo>>({
-    insight: { status: 'stopped', port: 0, outputLines: 0 },
-    media: { status: 'stopped', port: 0, outputLines: 0 },
-    query: { status: 'stopped', port: 0, outputLines: 0 },
+    review: { status: 'stopped', port: 0, outputLines: 0 },
+    competitor: { status: 'stopped', port: 0, outputLines: 0 },
+    trend: { status: 'stopped', port: 0, outputLines: 0 },
     forum: { status: 'stopped', port: 0, outputLines: 0 },
     report: { status: 'stopped', port: 0, outputLines: 0 },
   })
 
   const logBuffers = reactive<Record<string, string[]>>({
-    insight: [],
-    media: [],
-    query: [],
+    review: [],
+    competitor: [],
+    trend: [],
     forum: [],
     report: [],
   })
 
   const MAX_LOG_LINES = 5000
-  const activeApp = ref<string>('insight')
+  const activeApp = ref<string>('review')
 
   function updateAppStatus(name: string, status: 'running' | 'stopped' | 'starting' | 'error') {
     if (apps[name]) {

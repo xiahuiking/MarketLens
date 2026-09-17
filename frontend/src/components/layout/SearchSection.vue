@@ -3,7 +3,7 @@
     <div class="search-bar">
       <el-input
         v-model="query"
-        placeholder="输入搜索关键词，然后点击「开始」"
+        placeholder="输入商品 / 品牌 / 品类关键词，然后点击「开始」"
         size="large"
         clearable
         @keyup.enter="handleSearch"

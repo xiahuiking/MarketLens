@@ -1,5 +1,5 @@
 """
-Unified OpenAI-compatible LLM client for the Query Engine.
+Unified OpenAI-compatible LLM client for the Trend Engine.
 Re-exports the shared LLMClient from engines/common.
 """
 

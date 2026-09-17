@@ -86,7 +86,7 @@ const reportStore = useReportStore()
 const appsStore = useAppsStore()
 const { open: openReportSSE, close: closeReportSSE } = useReportSSE()
 
-const reportQuery = ref('智能舆情分析报告')
+const reportQuery = ref('商品口碑与竞品分析报告')
 
 const task = computed(() => reportStore.currentTask)
 

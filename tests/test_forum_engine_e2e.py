@@ -28,13 +28,13 @@ class TestParseForumLogLine:
 
     def test_parse_agent_line(self):
         from app.services.forum_service import parse_forum_log_line
-        line = "[10:30:15] [INSIGHT] 这是洞察引擎的分析结果"
+        line = "[10:30:15] [REVIEW] 这是口碑引擎的分析结果"
         result = parse_forum_log_line(line)
         assert result is not None
         assert result["type"] == "agent"
-        assert result["sender"] == "Insight Engine"
-        assert result["content"] == "这是洞察引擎的分析结果"
-        assert result["source"] == "INSIGHT"
+        assert result["sender"] == "口碑 Agent"
+        assert result["content"] == "这是口碑引擎的分析结果"
+        assert result["source"] == "REVIEW"
         assert result["timestamp"] == "10:30:15"
 
     def test_parse_host_line(self):
@@ -53,7 +53,7 @@ class TestParseForumLogLine:
 
     def test_parse_empty_content_returns_none(self):
         from app.services.forum_service import parse_forum_log_line
-        line = "[10:30:00] [INSIGHT]  "
+        line = "[10:30:00] [REVIEW]  "
         assert parse_forum_log_line(line) is None
 
     def test_parse_malformed_line_returns_none(self):
@@ -69,14 +69,14 @@ class TestParseForumLogLine:
 
     def test_parse_line_with_escaped_newlines(self):
         from app.services.forum_service import parse_forum_log_line
-        line = "[10:30:00] [MEDIA] 第一行\\n第二行\\n第三行"
+        line = "[10:30:00] [COMPETITOR] 第一行\\n第二行\\n第三行"
         result = parse_forum_log_line(line)
         assert result is not None
         assert result["content"] == "第一行\n第二行\n第三行"
 
     def test_parse_all_three_agent_sources(self):
         from app.services.forum_service import parse_forum_log_line
-        for source in ["QUERY", "MEDIA", "INSIGHT"]:
+        for source in ["TREND", "COMPETITOR", "REVIEW"]:
             line = f"[10:30:00] [{source}] 内容"
             result = parse_forum_log_line(line)
             assert result is not None, f"{source} 未被识别"
@@ -93,8 +93,8 @@ class TestGetForumLog:
         fs._forum_messages.clear()
         try:
             fs._forum_messages.append({
-                'type': 'agent', 'sender': 'Insight Engine',
-                'content': '洞察引擎分析', 'timestamp': '10:00:00', 'source': 'INSIGHT',
+                'type': 'agent', 'sender': '口碑 Agent',
+                'content': '口碑引擎分析', 'timestamp': '10:00:00', 'source': 'REVIEW',
             })
             fs._forum_messages.append({
                 'type': 'host', 'sender': 'Forum Host',
@@ -104,7 +104,7 @@ class TestGetForumLog:
             result = fs.get_forum_log()
             assert result["total_lines"] == 2
             assert len(result["parsed_messages"]) == 2
-            assert result["parsed_messages"][0]["source"] == "INSIGHT"
+            assert result["parsed_messages"][0]["source"] == "REVIEW"
             assert result["parsed_messages"][1]["source"] == "HOST"
         finally:
             fs._forum_messages[:] = original

@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-尚舆分析平台配置文件
+MarketLens 电商商品评论竞品分析平台配置
 
 此模块使用 pydantic-settings 管理全局配置，支持从环境变量和 .env 文件自动加载。
 数据模型定义位置：
@@ -25,7 +25,7 @@ class Settings(BaseSettings):
     变量名与原 config.py 大写一致，便于平滑过渡。
     """
     # ================== 服务器配置 ====================
-    HOST: str = Field("0.0.0.0", description="尚舆分析平台主机地址，例如 0.0.0.0 或 127.0.0.1")
+    HOST: str = Field("0.0.0.0", description="MarketLens 主机地址，例如 0.0.0.0 或 127.0.0.1")
     PORT: int = Field(5000, description="服务器端口号，默认5000")
     LOG_LEVEL:str = Field("INFO",description="日志等级")
 
@@ -40,20 +40,20 @@ class Settings(BaseSettings):
     
     # ======================= LLM 相关 =======================
     
-    # Insight Agent（推荐Kimi，申请地址：https://platform.moonshot.cn/）
-    REVIEW_ENGINE_API_KEY: Optional[str] = Field(None, description="Insight Agent（推荐 kimi-k2）API 密钥，用于主 LLM。")
-    REVIEW_ENGINE_BASE_URL: Optional[str] = Field("https://api.moonshot.cn/v1", description="Insight Agent LLM BaseUrl，可根据厂商自定义")
-    REVIEW_ENGINE_MODEL_NAME: str = Field("kimi-k2-0711-preview", description="Insight Agent LLM 模型名称，例如 kimi-k2-0711-preview")
+    # 口碑 Agent（ReviewEngine，推荐Kimi，申请地址：https://platform.moonshot.cn/）
+    REVIEW_ENGINE_API_KEY: Optional[str] = Field(None, description="口碑 Agent（推荐 kimi-k2）API 密钥，用于主 LLM。")
+    REVIEW_ENGINE_BASE_URL: Optional[str] = Field("https://api.moonshot.cn/v1", description="口碑 Agent LLM BaseUrl，可根据厂商自定义")
+    REVIEW_ENGINE_MODEL_NAME: str = Field("kimi-k2-0711-preview", description="口碑 Agent LLM 模型名称，例如 kimi-k2-0711-preview")
     
-    # Media Agent（推荐Gemini）
-    COMPETITOR_ENGINE_API_KEY: Optional[str] = Field(None, description="Media Agent（推荐 gemini-2.5-pro）API 密钥")
-    COMPETITOR_ENGINE_BASE_URL: Optional[str] = Field("https://aihubmix.com/v1", description="Media Agent LLM BaseUrl，可根据中转服务调整")
-    COMPETITOR_ENGINE_MODEL_NAME: str = Field("gemini-2.5-pro", description="Media Agent LLM 模型名称，如 gemini-2.5-pro")
+    # 竞品 Agent（CompetitorEngine，推荐Gemini）
+    COMPETITOR_ENGINE_API_KEY: Optional[str] = Field(None, description="竞品 Agent（推荐 gemini-2.5-pro）API 密钥")
+    COMPETITOR_ENGINE_BASE_URL: Optional[str] = Field("https://aihubmix.com/v1", description="竞品 Agent LLM BaseUrl，可根据中转服务调整")
+    COMPETITOR_ENGINE_MODEL_NAME: str = Field("gemini-2.5-pro", description="竞品 Agent LLM 模型名称，如 gemini-2.5-pro")
     
-    # Query Agent（推荐DeepSeek，申请地址：https://www.deepseek.com/）
-    TREND_ENGINE_API_KEY: Optional[str] = Field(None, description="Query Agent（推荐 deepseek）API 密钥")
-    TREND_ENGINE_BASE_URL: Optional[str] = Field("https://api.deepseek.com", description="Query Agent LLM BaseUrl")
-    TREND_ENGINE_MODEL_NAME: str = Field("deepseek-chat", description="Query Agent LLM 模型名称，如 deepseek-reasoner")
+    # 趋势 Agent（TrendEngine，推荐DeepSeek，申请地址：https://www.deepseek.com/）
+    TREND_ENGINE_API_KEY: Optional[str] = Field(None, description="趋势 Agent（推荐 deepseek）API 密钥")
+    TREND_ENGINE_BASE_URL: Optional[str] = Field("https://api.deepseek.com", description="趋势 Agent LLM BaseUrl")
+    TREND_ENGINE_MODEL_NAME: str = Field("deepseek-chat", description="趋势 Agent LLM 模型名称，如 deepseek-reasoner")
     
     # Report Agent（推荐Gemini）
     REPORT_ENGINE_API_KEY: Optional[str] = Field(None, description="Report Agent（推荐 gemini-2.5-pro）API 密钥")
@@ -89,7 +89,7 @@ class Settings(BaseSettings):
     ANSPIRE_API_KEY: Optional[str] = Field(None, description="Anspire AI Search API密钥（可选）")
 
     
-    # ================== Insight Engine 搜索配置 ====================
+    # ================== 口碑 Engine（ReviewEngine）搜索配置 ====================
     # 聚类
     ENABLE_CLUSTERING: bool = Field(True, description="是否启用搜索结果聚类")
     MAX_CLUSTERED_RESULTS: int = Field(50, description="聚类后最大结果数")

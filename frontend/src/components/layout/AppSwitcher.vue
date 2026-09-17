@@ -22,9 +22,9 @@ const appsStore = useAppsStore()
 const reportStore = useReportStore()
 
 const apps = computed(() => [
-  { name: 'insight', label: 'Insight', locked: false },
-  { name: 'media', label: 'Media', locked: false },
-  { name: 'query', label: 'Query', locked: false },
+  { name: 'review', label: '口碑', locked: false },
+  { name: 'competitor', label: '竞品', locked: false },
+  { name: 'trend', label: '趋势', locked: false },
   { name: 'forum', label: 'Forum', locked: false },
   {
     name: 'report',

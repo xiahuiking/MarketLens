@@ -49,15 +49,15 @@ services:
       - DB_PASSWORD=${DB_PASSWORD:-Atguigu.123}
       - DB_NAME=${DB_NAME:-media_crawler}
       - DB_CHARSET=${DB_CHARSET:-utf8mb4}
-      # Insight Engine (Kimi K2)
+      # 口碑 Agent / ReviewEngine (Kimi K2)
       - REVIEW_ENGINE_API_KEY=${REVIEW_ENGINE_API_KEY:-}
       - REVIEW_ENGINE_BASE_URL=${REVIEW_ENGINE_BASE_URL:-https://api.moonshot.cn/v1}
       - REVIEW_ENGINE_MODEL_NAME=${REVIEW_ENGINE_MODEL_NAME:-kimi-k2-0711-preview}
-      # Media Engine (Gemini 2.5 Pro)
+      # 竞品 Agent / CompetitorEngine (Gemini 2.5 Pro)
       - COMPETITOR_ENGINE_API_KEY=${COMPETITOR_ENGINE_API_KEY:-}
       - COMPETITOR_ENGINE_BASE_URL=${COMPETITOR_ENGINE_BASE_URL:-https://aihubmix.com/v1}
       - COMPETITOR_ENGINE_MODEL_NAME=${COMPETITOR_ENGINE_MODEL_NAME:-gemini-2.5-pro}
-      # Query Engine (DeepSeek)
+      # 趋势 Agent / TrendEngine (DeepSeek)
       - TREND_ENGINE_API_KEY=${TREND_ENGINE_API_KEY:-}
       - TREND_ENGINE_BASE_URL=${TREND_ENGINE_BASE_URL:-https://api.deepseek.com}
       - TREND_ENGINE_MODEL_NAME=${TREND_ENGINE_MODEL_NAME:-deepseek-chat}

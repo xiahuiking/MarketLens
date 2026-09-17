@@ -1,6 +1,6 @@
 """
 LLM module
-Provides a unified OpenAI-compatible client for the Insight Engine.
+Provides a unified OpenAI-compatible client for the Review Engine.
 """
 
 from .base import LLMClient
