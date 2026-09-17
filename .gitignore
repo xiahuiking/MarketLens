@@ -1,0 +1,61 @@
+# Environment
+.env
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg-info/
+dist/
+build/
+*.egg
+
+# Virtual env
+venv/
+.venv/
+env/
+spider_venv/
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Logs
+logs/
+*.log
+
+# Output reports & data
+data/
+# OS
+Thumbs.db
+
+# Streamlit
+.streamlit/
+
+# Claude Code local settings
+.claude/settings.local.json
+
+# Frontend
+frontend/node_modules/
+frontend/dist/
+frontend/*_engine_streamlit_reports/
+备课/
+models/
+scripts
+
+# Python 虚拟环境（本地开发环境，不提交）
+project_venv/
+
+# 爬虫浏览器运行时数据（Playwright/CDP user data，体积大且非源码）
+tools/SentinelSpider/DeepSentimentCrawling/MediaCrawler/browser_data/
+
+# 模型训练产物（权重与数据集，体积大且非源码）
+*.pth
+*.pkl
+*.onnx
+*.ort
+tools/SentimentAnalysisModel/**/dataset/
