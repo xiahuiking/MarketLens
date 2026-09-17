@@ -1,6 +1,6 @@
 <template>
   <div class="tab-content">
-    <EnginePanel engine="insight" />
+    <EnginePanel engine="review" />
   </div>
 </template>
 

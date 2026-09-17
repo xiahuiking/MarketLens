@@ -29,4 +29,4 @@ def _extract_title(md: str, fallback: str = "") -> str:
             return s.lstrip("#").strip()
         if s:
             fallback = fallback or s
-    return fallback or "智能舆情分析报告"
+    return fallback or "电商商品分析报告"

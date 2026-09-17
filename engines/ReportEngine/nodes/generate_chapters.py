@@ -403,9 +403,9 @@ class GenerateChaptersNode(BaseNode):
                 "templateOverview": context.get("template_overview", {}),
             },
             "reports": {
-                "query_engine": reports.get("query_engine", ""),
-                "media_engine": reports.get("media_engine", ""),
-                "insight_engine": reports.get("insight_engine", ""),
+                "trend_engine": reports.get("trend_engine", ""),
+                "competitor_engine": reports.get("competitor_engine", ""),
+                "review_engine": reports.get("review_engine", ""),
             },
             "forumLogs": context.get("forum_logs", ""),
             "dataBundles": context.get("data_bundles", []),

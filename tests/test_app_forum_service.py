@@ -25,10 +25,10 @@ class TestParseForumLogLine:
 
     def test_parses_agent_message(self):
         from app.services.forum_service import parse_forum_log_line
-        r = parse_forum_log_line("[10:00:02] [INSIGHT] 洞察")
+        r = parse_forum_log_line("[10:00:02] [REVIEW] 洞察")
         assert r["type"] == "agent"
-        assert r["sender"] == "Insight Engine"
-        assert r["source"] == "INSIGHT"
+        assert r["sender"] == "口碑 Agent"
+        assert r["source"] == "REVIEW"
 
     def test_rejects_system(self):
         from app.services.forum_service import parse_forum_log_line
@@ -53,13 +53,13 @@ class TestParseForumLogLine:
 
     def test_media_agent(self):
         from app.services.forum_service import parse_forum_log_line
-        r = parse_forum_log_line("[10:00:00] [MEDIA] media result")
-        assert r["sender"] == "Media Engine"
+        r = parse_forum_log_line("[10:00:00] [COMPETITOR] media result")
+        assert r["sender"] == "竞品 Agent"
 
     def test_query_agent(self):
         from app.services.forum_service import parse_forum_log_line
-        r = parse_forum_log_line("[10:00:00] [QUERY] query result")
-        assert r["sender"] == "Query Engine"
+        r = parse_forum_log_line("[10:00:00] [TREND] query result")
+        assert r["sender"] == "趋势 Agent"
 
 
 class TestGetForumLog:
@@ -74,8 +74,8 @@ class TestGetForumLog:
         fs._forum_messages.clear()
         try:
             fs._forum_messages.append({
-                'type': 'agent', 'sender': 'Insight Engine',
-                'content': 'test', 'timestamp': '10:00:00', 'source': 'INSIGHT',
+                'type': 'agent', 'sender': '口碑 Agent',
+                'content': 'test', 'timestamp': '10:00:00', 'source': 'REVIEW',
             })
             fs._forum_messages.append({
                 'type': 'host', 'sender': 'Forum Host',
@@ -85,7 +85,7 @@ class TestGetForumLog:
             r = fs.get_forum_log()
             assert r["total_lines"] == 2
             assert len(r["parsed_messages"]) == 2
-            assert r["parsed_messages"][0]["source"] == "INSIGHT"
+            assert r["parsed_messages"][0]["source"] == "REVIEW"
             assert r["parsed_messages"][1]["source"] == "HOST"
         finally:
             fs._forum_messages[:] = original

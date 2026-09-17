@@ -10,8 +10,8 @@ class NormalizeReportsNode:
     def __call__(self, state: ReportGraphState) -> dict:
         from ..agent import _stringify
         reports = state.get("reports", [])
-        keys = ["query_engine", "media_engine", "insight_engine"]
-        engine_names = {"query_engine": "TrendEngine", "media_engine": "CompetitorEngine", "insight_engine": "ReviewEngine"}
+        keys = ["trend_engine", "competitor_engine", "review_engine"]
+        engine_names = {"trend_engine": "趋势 Agent", "competitor_engine": "竞品 Agent", "review_engine": "口碑 Agent"}
         normalized = {}
         for idx, key in enumerate(keys):
             value = reports[idx] if idx < len(reports) else ""

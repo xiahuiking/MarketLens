@@ -1,6 +1,6 @@
 <template>
   <div class="tab-content">
-    <EnginePanel engine="media" />
+    <EnginePanel engine="competitor" />
   </div>
 </template>
 

@@ -88,7 +88,7 @@ def clear_report_log():
 async def generate_report(request: Request):
     try:
         data = await request.json() or {}
-        query = data.get("query", "智能舆情分析报告")
+        query = data.get("query", "商品口碑与竞品分析报告")
         custom_template = data.get("custom_template", "")
 
         svc.clear_report_log()

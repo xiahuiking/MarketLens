@@ -18,7 +18,7 @@ class ComposeDocumentNode:
 
         manifest = {
             "query": query,
-            "title": layout.get("title") or (f"{query} - 舆情洞察报告" if query else template_result.get("template_name")),
+            "title": layout.get("title") or (f"{query} - 电商竞品分析报告" if query else template_result.get("template_name")),
             "templateName": template_result.get("template_name"),
             "toc": {"depth": 3, "autoNumbering": True, "title": layout.get("tocTitle") or "目录"},
             "hero": layout.get("hero"),

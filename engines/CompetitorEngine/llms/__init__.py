@@ -1,5 +1,5 @@
 """
-LLM module for the Media Engine.
+LLM module for the Competitor Engine.
 """
 
 from .base import LLMClient

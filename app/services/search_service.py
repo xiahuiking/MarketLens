@@ -1,5 +1,5 @@
 """
-Search service — runs Insight/Media/Query engine agents in background threads.
+Search service — runs Review/Competitor/Trend engine agents in background threads.
 Publishes progress/results via event_bus SSE.
 
 All engines use module-level run_research() directly.

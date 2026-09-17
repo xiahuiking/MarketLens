@@ -1,5 +1,5 @@
 """
-Unified OpenAI-compatible LLM client for the Media Engine.
+Unified OpenAI-compatible LLM client for the Competitor Engine.
 Re-exports the shared LLMClient from engines/common.
 """
 

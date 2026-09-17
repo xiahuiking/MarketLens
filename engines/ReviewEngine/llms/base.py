@@ -1,5 +1,5 @@
 """
-Unified OpenAI-compatible LLM client for the Insight Engine.
+Unified OpenAI-compatible LLM client for the Review Engine.
 Re-exports the shared LLMClient from engines/common.
 """
 

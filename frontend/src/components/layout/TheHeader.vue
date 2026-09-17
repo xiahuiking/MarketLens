@@ -7,7 +7,7 @@
         class="logo"
         fit="contain"
       />
-      <h1 class="title">🐛舆分析平台 - Chill SentinelAI</h1>
+      <h1 class="title">MarketLens · 电商商品评论竞品分析平台</h1>
     </div>
     <div class="header-right">
       <el-button

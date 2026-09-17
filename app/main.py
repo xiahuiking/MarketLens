@@ -30,7 +30,7 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(
-    title="尚舆分析平台 API",
+    title="MarketLens API",
     version="2.0.0",
     lifespan=lifespan,
 )
@@ -84,4 +84,4 @@ async def serve_spa(full_path: str):
     """Serve Vue SPA entry point."""
     if _INDEX_HTML.exists():
         return FileResponse(_INDEX_HTML)
-    return HTMLResponse(content="<h1>尚舆分析平台</h1>", status_code=200)
+    return HTMLResponse(content="<h1>MarketLens · 电商商品评论竞品分析平台</h1>", status_code=200)

@@ -323,7 +323,7 @@ class HTMLRenderer:
 
         metadata = self.metadata
         theme_tokens = metadata.get("themeTokens") or self.document.get("themeTokens", {})
-        title = metadata.get("title") or metadata.get("query") or "智能舆情报告"
+        title = metadata.get("title") or metadata.get("query") or "电商商品分析报告"
         hero_kpis = (metadata.get("hero") or {}).get("kpis")
         self.hero_kpi_signature = self._kpi_signature_from_items(hero_kpis)
 
@@ -538,7 +538,7 @@ class HTMLRenderer:
             str: header HTML。
         """
         metadata = self.metadata
-        title = metadata.get("title") or "智能舆情分析报告"
+        title = metadata.get("title") or "电商商品分析报告"
         subtitle = metadata.get("subtitle") or metadata.get("templateName") or "自动生成"
         return f"""
 <header class="report-header no-print">
@@ -600,7 +600,7 @@ class HTMLRenderer:
         返回:
             str: cover section HTML。
         """
-        title = self.metadata.get("title") or "智能舆情报告"
+        title = self.metadata.get("title") or "电商商品分析报告"
         subtitle = self.metadata.get("subtitle") or self.metadata.get("templateName") or ""
         overview_hint = "文章总览"
         return f"""
@@ -624,7 +624,7 @@ class HTMLRenderer:
             return ""
 
         # 获取标题和副标题
-        title = self.metadata.get("title") or "智能舆情报告"
+        title = self.metadata.get("title") or "电商商品分析报告"
         subtitle = self.metadata.get("subtitle") or self.metadata.get("templateName") or ""
 
         summary = hero.get("summary")
