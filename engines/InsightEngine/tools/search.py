@@ -278,13 +278,36 @@ class MediaCrawlerDB:
 
         for table, config in search_configs.items():
             param_dict = {}
-            where_clauses = []
+            like_clauses = []
             for idx, field in enumerate(config['fields']):
                 pname = f"term_{idx}"
-                where_clauses.append(f'{self._wrap_query_field_with_dialect(field)} LIKE :{pname}')
+                like_clauses.append(f'{self._wrap_query_field_with_dialect(field)} LIKE :{pname}')
                 param_dict[pname] = search_term
+
+            # 时间过滤（修复：此前 start_date/end_date 被解析但从未拼进 SQL，导致日期参数失效）
+            time_col = config.get('time_col')
+            if time_col:
+                wq = self._wrap_query_field_with_dialect
+                time_type = config.get('time_type', 'sec')
+                if time_type == 'sec':
+                    t_start, t_end = str(int(start_dt.timestamp())), str(int(end_dt.timestamp()))
+                    time_clause = f"{wq(time_col)} >= :t_start AND {wq(time_col)} < :t_end"
+                elif time_type == 'ms':
+                    t_start, t_end = str(int(start_dt.timestamp() * 1000)), str(int(end_dt.timestamp() * 1000))
+                    time_clause = f"{wq(time_col)} >= :t_start AND {wq(time_col)} < :t_end"
+                elif time_type in ('str', 'date_str'):
+                    t_start, t_end = start_dt.strftime('%Y-%m-%d'), end_dt.strftime('%Y-%m-%d')
+                    time_clause = f"{wq(time_col)} >= :t_start AND {wq(time_col)} < :t_end"
+                else:  # sec_str：字符串存储的秒级时间戳
+                    t_start, t_end = str(int(start_dt.timestamp())), str(int(end_dt.timestamp()))
+                    time_clause = f"CAST({wq(time_col)} AS UNSIGNED) >= :t_start AND CAST({wq(time_col)} AS UNSIGNED) < :t_end"
+                param_dict['t_start'] = t_start
+                param_dict['t_end'] = t_end
+                where_clause = f"({' OR '.join(like_clauses)}) AND ({time_clause})"
+            else:
+                where_clause = ' OR '.join(like_clauses)
+
             param_dict['limit'] = limit_per_table
-            where_clause = ' OR '.join(where_clauses)
             query = f'SELECT * FROM {self._wrap_query_field_with_dialect(table)} WHERE {where_clause} ORDER BY id DESC LIMIT :limit'
             raw_results = self._execute_query(query, param_dict)
             for row in raw_results:

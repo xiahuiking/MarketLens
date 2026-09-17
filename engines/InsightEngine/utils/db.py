@@ -14,18 +14,38 @@ from typing import Any, Dict, Iterable, List, Optional, Union
 
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, create_async_engine
 from sqlalchemy import text
-from app.config import settings
 
 __all__ = [
     "get_async_engine",
     "fetch_all",
+    "reset_engine",
 ]
 
 
 _engine: Optional[AsyncEngine] = None
+_engine_url: Optional[str] = None
+
+
+def _get_settings():
+    """
+    运行时动态读取配置。
+
+    不能使用 `from app.config import settings` 按值导入：config.reload_settings()
+    会重新赋值 config.settings，按值导入会永远指向启动时的旧对象。
+    """
+    from app import config
+    return config.settings
+
+
+def reset_engine() -> None:
+    """重置缓存的异步引擎，使数据库配置变更后立即生效。"""
+    global _engine, _engine_url
+    _engine = None
+    _engine_url = None
 
 
 def _build_database_url() -> str:
+    settings = _get_settings()
     dialect: str = (settings.DB_DIALECT or "mysql").lower()
     host: str = settings.DB_HOST or ""
     port: str = str(settings.DB_PORT or "")
@@ -47,14 +67,21 @@ def _build_database_url() -> str:
 
 
 def get_async_engine() -> AsyncEngine:
-    global _engine
+    global _engine, _engine_url
+    database_url: str = _build_database_url()
+
+    # 配置变更后重建引擎（旧引擎连接池交给 GC；pool_pre_ping 会规避失效连接）
+    if _engine is not None and database_url != _engine_url:
+        _engine = None
+        _engine_url = None
+
     if _engine is None:
-        database_url: str = _build_database_url()
         _engine = create_async_engine(
             database_url,
             pool_pre_ping=True,
             pool_recycle=1800,
         )
+        _engine_url = database_url
     return _engine
 
 
