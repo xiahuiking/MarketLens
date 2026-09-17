@@ -1,7 +1,7 @@
 """
 图表API修复模块。
 
-提供调用4个Engine（ReportEngine, ForumEngine, InsightEngine, MediaEngine）的LLM API
+提供调用4个Engine（ReportEngine, ForumEngine, ReviewEngine, CompetitorEngine）的LLM API
 来修复图表数据的功能。
 """
 
@@ -369,8 +369,8 @@ def create_llm_repair_functions() -> List:
     返回4个Engine的修复函数：
     1. ReportEngine
     2. ForumEngine (通过ForumHost)
-    3. InsightEngine
-    4. MediaEngine
+    3. ReviewEngine
+    4. CompetitorEngine
 
     Returns:
         List[Callable]: 修复函数列表
@@ -446,17 +446,17 @@ def create_llm_repair_functions() -> List:
         repair_functions.append(repair_with_forum_engine)
         logger.debug("已添加ForumEngine图表修复函数")
 
-    # 3. InsightEngine修复函数
-    if settings.INSIGHT_ENGINE_API_KEY and settings.INSIGHT_ENGINE_BASE_URL:
+    # 3. ReviewEngine修复函数
+    if settings.REVIEW_ENGINE_API_KEY and settings.REVIEW_ENGINE_BASE_URL:
         def repair_with_insight_engine(widget_block: Dict[str, Any], errors: List[str]) -> Optional[Dict[str, Any]]:
-            """使用InsightEngine的LLM修复图表"""
+            """使用ReviewEngine的LLM修复图表"""
             try:
                 from ReportEngine.llms import LLMClient
 
                 client = LLMClient(
-                    api_key=settings.INSIGHT_ENGINE_API_KEY,
-                    base_url=settings.INSIGHT_ENGINE_BASE_URL,
-                    model_name=settings.INSIGHT_ENGINE_MODEL_NAME or "gpt-4",
+                    api_key=settings.REVIEW_ENGINE_API_KEY,
+                    base_url=settings.REVIEW_ENGINE_BASE_URL,
+                    model_name=settings.REVIEW_ENGINE_MODEL_NAME or "gpt-4",
                 )
 
                 prompt = build_chart_repair_prompt(widget_block, errors)
@@ -474,23 +474,23 @@ def create_llm_repair_functions() -> List:
                 return repaired
 
             except Exception as e:
-                logger.exception(f"InsightEngine图表修复失败: {e}")
+                logger.exception(f"ReviewEngine图表修复失败: {e}")
                 return None
 
         repair_functions.append(repair_with_insight_engine)
-        logger.debug("已添加InsightEngine图表修复函数")
+        logger.debug("已添加ReviewEngine图表修复函数")
 
-    # 4. MediaEngine修复函数
-    if settings.MEDIA_ENGINE_API_KEY and settings.MEDIA_ENGINE_BASE_URL:
+    # 4. CompetitorEngine修复函数
+    if settings.COMPETITOR_ENGINE_API_KEY and settings.COMPETITOR_ENGINE_BASE_URL:
         def repair_with_media_engine(widget_block: Dict[str, Any], errors: List[str]) -> Optional[Dict[str, Any]]:
-            """使用MediaEngine的LLM修复图表"""
+            """使用CompetitorEngine的LLM修复图表"""
             try:
                 from ReportEngine.llms import LLMClient
 
                 client = LLMClient(
-                    api_key=settings.MEDIA_ENGINE_API_KEY,
-                    base_url=settings.MEDIA_ENGINE_BASE_URL,
-                    model_name=settings.MEDIA_ENGINE_MODEL_NAME or "gpt-4",
+                    api_key=settings.COMPETITOR_ENGINE_API_KEY,
+                    base_url=settings.COMPETITOR_ENGINE_BASE_URL,
+                    model_name=settings.COMPETITOR_ENGINE_MODEL_NAME or "gpt-4",
                 )
 
                 prompt = build_chart_repair_prompt(widget_block, errors)
@@ -508,11 +508,11 @@ def create_llm_repair_functions() -> List:
                 return repaired
 
             except Exception as e:
-                logger.exception(f"MediaEngine图表修复失败: {e}")
+                logger.exception(f"CompetitorEngine图表修复失败: {e}")
                 return None
 
         repair_functions.append(repair_with_media_engine)
-        logger.debug("已添加MediaEngine图表修复函数")
+        logger.debug("已添加CompetitorEngine图表修复函数")
 
     if not repair_functions:
         logger.warning("未配置任何Engine API，图表API修复功能将不可用")

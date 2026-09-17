@@ -94,7 +94,7 @@ def _get_replay_events() -> list[str]:
 
     # Always include latest per-engine results (even if buffer wrapped)
     with _latest_results_lock:
-        for engine in ("insight", "media", "query"):
+        for engine in ("review", "competitor", "query"):
             if engine in _latest_results:
                 events.append(_latest_results[engine])
 

@@ -41,19 +41,19 @@ class Settings(BaseSettings):
     # ======================= LLM 相关 =======================
     
     # Insight Agent（推荐Kimi，申请地址：https://platform.moonshot.cn/）
-    INSIGHT_ENGINE_API_KEY: Optional[str] = Field(None, description="Insight Agent（推荐 kimi-k2）API 密钥，用于主 LLM。")
-    INSIGHT_ENGINE_BASE_URL: Optional[str] = Field("https://api.moonshot.cn/v1", description="Insight Agent LLM BaseUrl，可根据厂商自定义")
-    INSIGHT_ENGINE_MODEL_NAME: str = Field("kimi-k2-0711-preview", description="Insight Agent LLM 模型名称，例如 kimi-k2-0711-preview")
+    REVIEW_ENGINE_API_KEY: Optional[str] = Field(None, description="Insight Agent（推荐 kimi-k2）API 密钥，用于主 LLM。")
+    REVIEW_ENGINE_BASE_URL: Optional[str] = Field("https://api.moonshot.cn/v1", description="Insight Agent LLM BaseUrl，可根据厂商自定义")
+    REVIEW_ENGINE_MODEL_NAME: str = Field("kimi-k2-0711-preview", description="Insight Agent LLM 模型名称，例如 kimi-k2-0711-preview")
     
     # Media Agent（推荐Gemini）
-    MEDIA_ENGINE_API_KEY: Optional[str] = Field(None, description="Media Agent（推荐 gemini-2.5-pro）API 密钥")
-    MEDIA_ENGINE_BASE_URL: Optional[str] = Field("https://aihubmix.com/v1", description="Media Agent LLM BaseUrl，可根据中转服务调整")
-    MEDIA_ENGINE_MODEL_NAME: str = Field("gemini-2.5-pro", description="Media Agent LLM 模型名称，如 gemini-2.5-pro")
+    COMPETITOR_ENGINE_API_KEY: Optional[str] = Field(None, description="Media Agent（推荐 gemini-2.5-pro）API 密钥")
+    COMPETITOR_ENGINE_BASE_URL: Optional[str] = Field("https://aihubmix.com/v1", description="Media Agent LLM BaseUrl，可根据中转服务调整")
+    COMPETITOR_ENGINE_MODEL_NAME: str = Field("gemini-2.5-pro", description="Media Agent LLM 模型名称，如 gemini-2.5-pro")
     
     # Query Agent（推荐DeepSeek，申请地址：https://www.deepseek.com/）
-    QUERY_ENGINE_API_KEY: Optional[str] = Field(None, description="Query Agent（推荐 deepseek）API 密钥")
-    QUERY_ENGINE_BASE_URL: Optional[str] = Field("https://api.deepseek.com", description="Query Agent LLM BaseUrl")
-    QUERY_ENGINE_MODEL_NAME: str = Field("deepseek-chat", description="Query Agent LLM 模型名称，如 deepseek-reasoner")
+    TREND_ENGINE_API_KEY: Optional[str] = Field(None, description="Query Agent（推荐 deepseek）API 密钥")
+    TREND_ENGINE_BASE_URL: Optional[str] = Field("https://api.deepseek.com", description="Query Agent LLM BaseUrl")
+    TREND_ENGINE_MODEL_NAME: str = Field("deepseek-chat", description="Query Agent LLM 模型名称，如 deepseek-reasoner")
     
     # Report Agent（推荐Gemini）
     REPORT_ENGINE_API_KEY: Optional[str] = Field(None, description="Report Agent（推荐 gemini-2.5-pro）API 密钥")
@@ -112,10 +112,10 @@ class Settings(BaseSettings):
     MAX_REFLECTIONS: int = Field(3, description="最大反思次数")
     MAX_PARAGRAPHS: int = Field(6, description="最大段落数")
     SEARCH_TIMEOUT: int = Field(240, description="单次搜索请求超时")
-    MAX_CONTENT_LENGTH: int = Field(500000, description="搜索最大内容长度（InsightEngine/ReportEngine 使用）")
-    SEARCH_CONTENT_MAX_LENGTH: int = Field(500000, description="搜索最大内容长度（MediaEngine/QueryEngine 使用）")
+    MAX_CONTENT_LENGTH: int = Field(500000, description="搜索最大内容长度（ReviewEngine/ReportEngine 使用）")
+    SEARCH_CONTENT_MAX_LENGTH: int = Field(500000, description="搜索最大内容长度（CompetitorEngine/TrendEngine 使用）")
     SAVE_INTERMEDIATE_STATES: bool = Field(True, description="是否保存中间状态")
-    MAX_SEARCH_RESULTS: int = Field(20, description="最大搜索结果数（QueryEngine）")
+    MAX_SEARCH_RESULTS: int = Field(20, description="最大搜索结果数（TrendEngine）")
     # Bocha 兼容键（别名）
     BOCHA_API_KEY: Optional[str] = Field(None, description="Bocha 兼容键（别名）")
     
@@ -150,9 +150,9 @@ def reload_settings() -> Settings:
     _keys_to_clear = [
         'HOST', 'PORT', 'DB_DIALECT', 'DB_HOST', 'DB_PORT', 'DB_USER',
         'DB_PASSWORD', 'DB_NAME', 'DB_CHARSET',
-        'INSIGHT_ENGINE_API_KEY', 'INSIGHT_ENGINE_BASE_URL', 'INSIGHT_ENGINE_MODEL_NAME',
-        'MEDIA_ENGINE_API_KEY', 'MEDIA_ENGINE_BASE_URL', 'MEDIA_ENGINE_MODEL_NAME',
-        'QUERY_ENGINE_API_KEY', 'QUERY_ENGINE_BASE_URL', 'QUERY_ENGINE_MODEL_NAME',
+        'REVIEW_ENGINE_API_KEY', 'REVIEW_ENGINE_BASE_URL', 'REVIEW_ENGINE_MODEL_NAME',
+        'COMPETITOR_ENGINE_API_KEY', 'COMPETITOR_ENGINE_BASE_URL', 'COMPETITOR_ENGINE_MODEL_NAME',
+        'TREND_ENGINE_API_KEY', 'TREND_ENGINE_BASE_URL', 'TREND_ENGINE_MODEL_NAME',
         'REPORT_ENGINE_API_KEY', 'REPORT_ENGINE_BASE_URL', 'REPORT_ENGINE_MODEL_NAME',
         'FORUM_HOST_API_KEY', 'FORUM_HOST_BASE_URL', 'FORUM_HOST_MODEL_NAME',
         'KEYWORD_OPTIMIZER_API_KEY', 'KEYWORD_OPTIMIZER_BASE_URL', 'KEYWORD_OPTIMIZER_MODEL_NAME',

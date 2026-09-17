@@ -2160,8 +2160,8 @@ class HTMLRenderer:
     def _render_engine_quote(self, block: Dict[str, Any]) -> str:
         """渲染单Engine发言块，带独立配色与标题"""
         engine_raw = (block.get("engine") or "").lower()
-        engine = engine_raw if engine_raw in ENGINE_AGENT_TITLES else "insight"
-        expected_title = ENGINE_AGENT_TITLES.get(engine, ENGINE_AGENT_TITLES["insight"])
+        engine = engine_raw if engine_raw in ENGINE_AGENT_TITLES else "review"
+        expected_title = ENGINE_AGENT_TITLES.get(engine, ENGINE_AGENT_TITLES["review"])
         title_raw = block.get("title") if isinstance(block.get("title"), str) else ""
         title = title_raw if title_raw == expected_title else expected_title
         inner = self._render_blocks(block.get("blocks", []))

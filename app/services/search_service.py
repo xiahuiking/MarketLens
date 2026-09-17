@@ -19,9 +19,9 @@ from app.services.event_types import EventType
 from app.services.forum_service import start_forum_engine
 
 OUTPUT_DIRS = {
-    'insight': 'data/report/insight',
-    'media': 'data/report/media',
-    'query': 'data/report/query',
+    'review': 'data/report/review',
+    'competitor': 'data/report/competitor',
+    'trend': 'data/report/trend',
 }
 _LOG_DIR = Path(__file__).resolve().parent.parent.parent / "logs"
 
@@ -34,7 +34,7 @@ def search_all(query: str):
     # TODO:这个方法应该放在整个系统启动开始时候
     start_forum_engine()
 
-    for engine_type in ['insight', 'media', 'query']:
+    for engine_type in ['review', 'competitor', 'trend']:
         t = threading.Thread(
             target=run_engine_task,
             args=(engine_type, query),
@@ -105,7 +105,7 @@ def run_engine_task(engine_type: str, query: str):
         _log_file,
         format="{time:YYYY-MM-DD HH:mm:ss} | {level} | {name} - {message}",
         level=settings.LOG_LEVEL, encoding="utf-8", rotation="10 MB",
-        # record["name"] 是模块的 __name__，例如engines.InsightEngine.agent
+        # record["name"] 是模块的 __name__，例如engines.ReviewEngine.agent
         filter=lambda record: engine_type.lower() in record["name"].lower() or "common" in record["name"].lower(),
     )
 
@@ -115,12 +115,12 @@ def run_engine_task(engine_type: str, query: str):
             "message": "正在初始化引擎...", "progress_pct": 0,
         })
 
-        if engine_type == 'insight':
-            result = _run_insight_research(query)
-        elif engine_type == 'media':
-            result = _run_media_research(query)
-        elif engine_type == 'query':
-            result = _run_query_research(query)
+        if engine_type == 'review':
+            result = _run_review_research(query)
+        elif engine_type == 'competitor':
+            result = _run_competitor_research(query)
+        elif engine_type == 'trend':
+            result = _run_trend_research(query)
         else:
             raise ValueError(f"Unknown engine type: {engine_type}")
 
@@ -146,62 +146,62 @@ def run_engine_task(engine_type: str, query: str):
 
 
 
-def _run_insight_research(query: str) -> Dict[str, Any]:
+def _run_review_research(query: str) -> Dict[str, Any]:
     from app.config import settings, Settings
-    from engines.InsightEngine.agent import run_research
-    from engines.InsightEngine.llms import LLMClient
+    from engines.ReviewEngine.agent import run_research
+    from engines.ReviewEngine.llms import LLMClient
 
-    model = settings.INSIGHT_ENGINE_MODEL_NAME or "kimi-k2-0711-preview"
+    model = settings.REVIEW_ENGINE_MODEL_NAME or "kimi-k2-0711-preview"
     config = Settings(
-        INSIGHT_ENGINE_API_KEY=settings.INSIGHT_ENGINE_API_KEY,
-        INSIGHT_ENGINE_BASE_URL=settings.INSIGHT_ENGINE_BASE_URL,
-        INSIGHT_ENGINE_MODEL_NAME=model,
+        REVIEW_ENGINE_API_KEY=settings.REVIEW_ENGINE_API_KEY,
+        REVIEW_ENGINE_BASE_URL=settings.REVIEW_ENGINE_BASE_URL,
+        REVIEW_ENGINE_MODEL_NAME=model,
         DB_HOST=settings.DB_HOST, DB_USER=settings.DB_USER,
         DB_PASSWORD=settings.DB_PASSWORD, DB_NAME=settings.DB_NAME,
         DB_PORT=settings.DB_PORT, DB_CHARSET=settings.DB_CHARSET,
         DB_DIALECT=settings.DB_DIALECT,
         MAX_REFLECTIONS=2, MAX_CONTENT_LENGTH=500000,
-        OUTPUT_DIR=OUTPUT_DIRS['insight'],
+        OUTPUT_DIR=OUTPUT_DIRS['review'],
     )
     llm_client = LLMClient(
-        api_key=config.INSIGHT_ENGINE_API_KEY,
-        model_name=config.INSIGHT_ENGINE_MODEL_NAME,
-        base_url=config.INSIGHT_ENGINE_BASE_URL,
+        api_key=config.REVIEW_ENGINE_API_KEY,
+        model_name=config.REVIEW_ENGINE_MODEL_NAME,
+        base_url=config.REVIEW_ENGINE_BASE_URL,
     )
 
-    # 这里也是一种抽象，InsightEngine当中所有的节点的事件，event_type全部都是engine_progress，
+    # 这里也是一种抽象，ReviewEngine当中所有的节点的事件，event_type全部都是engine_progress，
     def progress_callback(data):
         "回调函数，用以通过SSE机制，在前端展示进度"
-        publish(EventType.ENGINE_PROGRESS, {"engine": "insight", **data})
+        publish(EventType.ENGINE_PROGRESS, {"engine": "review", **data})
 
     return run_research(query, config, llm_client, progress_callback)
 
 
-def _run_media_research(query: str) -> Dict[str, Any]:
+def _run_competitor_research(query: str) -> Dict[str, Any]:
     from app.config import settings, Settings
-    from engines.MediaEngine.agent import run_research
-    from engines.MediaEngine.llms import LLMClient
-    from engines.MediaEngine.tools import (
+    from engines.CompetitorEngine.agent import run_research
+    from engines.CompetitorEngine.llms import LLMClient
+    from engines.CompetitorEngine.tools import (
         BochaMultimodalSearch, AnspireAISearch, TavilySearchWrapper,
     )
 
-    model = settings.MEDIA_ENGINE_MODEL_NAME or "gemini-2.5-pro"
+    model = settings.COMPETITOR_ENGINE_MODEL_NAME or "gemini-2.5-pro"
     search_type = settings.SEARCH_TOOL_TYPE or "TavilyAPI"
     config = Settings(
-        MEDIA_ENGINE_API_KEY=settings.MEDIA_ENGINE_API_KEY,
-        MEDIA_ENGINE_BASE_URL=settings.MEDIA_ENGINE_BASE_URL,
-        MEDIA_ENGINE_MODEL_NAME=model,
+        COMPETITOR_ENGINE_API_KEY=settings.COMPETITOR_ENGINE_API_KEY,
+        COMPETITOR_ENGINE_BASE_URL=settings.COMPETITOR_ENGINE_BASE_URL,
+        COMPETITOR_ENGINE_MODEL_NAME=model,
         SEARCH_TOOL_TYPE=search_type,
         TAVILY_API_KEY=settings.TAVILY_API_KEY,
         BOCHA_WEB_SEARCH_API_KEY=settings.BOCHA_WEB_SEARCH_API_KEY,
         ANSPIRE_API_KEY=settings.ANSPIRE_API_KEY,
         MAX_REFLECTIONS=2, SEARCH_CONTENT_MAX_LENGTH=20000,
-        OUTPUT_DIR=OUTPUT_DIRS['media'],
+        OUTPUT_DIR=OUTPUT_DIRS['competitor'],
     )
     llm_client = LLMClient(
-        api_key=config.MEDIA_ENGINE_API_KEY,
-        model_name=config.MEDIA_ENGINE_MODEL_NAME,
-        base_url=config.MEDIA_ENGINE_BASE_URL,
+        api_key=config.COMPETITOR_ENGINE_API_KEY,
+        model_name=config.COMPETITOR_ENGINE_MODEL_NAME,
+        base_url=config.COMPETITOR_ENGINE_BASE_URL,
     )
 
     if search_type == "TavilyAPI":
@@ -212,35 +212,35 @@ def _run_media_research(query: str) -> Dict[str, Any]:
         search_agency = BochaMultimodalSearch(api_key=config.BOCHA_WEB_SEARCH_API_KEY)
 
     def progress_callback(data):
-        publish(EventType.ENGINE_PROGRESS, {"engine": "media", **data})
+        publish(EventType.ENGINE_PROGRESS, {"engine": "competitor", **data})
 
     return run_research(query, config, llm_client, search_agency, progress_callback)
 
 
-def _run_query_research(query: str) -> Dict[str, Any]:
+def _run_trend_research(query: str) -> Dict[str, Any]:
     from app.config import settings, Settings
-    from engines.QueryEngine.agent import run_research
-    from engines.QueryEngine.llms import LLMClient
-    from engines.MediaEngine.tools.search import TavilySearchWrapper
+    from engines.TrendEngine.agent import run_research
+    from engines.TrendEngine.llms import LLMClient
+    from engines.CompetitorEngine.tools.search import TavilySearchWrapper
 
-    model = settings.QUERY_ENGINE_MODEL_NAME or "deepseek-chat"
+    model = settings.TREND_ENGINE_MODEL_NAME or "deepseek-chat"
     config = Settings(
-        QUERY_ENGINE_API_KEY=settings.QUERY_ENGINE_API_KEY,
-        QUERY_ENGINE_BASE_URL=settings.QUERY_ENGINE_BASE_URL,
-        QUERY_ENGINE_MODEL_NAME=model,
+        TREND_ENGINE_API_KEY=settings.TREND_ENGINE_API_KEY,
+        TREND_ENGINE_BASE_URL=settings.TREND_ENGINE_BASE_URL,
+        TREND_ENGINE_MODEL_NAME=model,
         TAVILY_API_KEY=settings.TAVILY_API_KEY,
         MAX_REFLECTIONS=2, SEARCH_CONTENT_MAX_LENGTH=20000,
-        OUTPUT_DIR=OUTPUT_DIRS['query'],
+        OUTPUT_DIR=OUTPUT_DIRS['trend'],
     )
     llm_client = LLMClient(
-        api_key=config.QUERY_ENGINE_API_KEY,
-        model_name=config.QUERY_ENGINE_MODEL_NAME,
-        base_url=config.QUERY_ENGINE_BASE_URL,
+        api_key=config.TREND_ENGINE_API_KEY,
+        model_name=config.TREND_ENGINE_MODEL_NAME,
+        base_url=config.TREND_ENGINE_BASE_URL,
     )
     search_agency = TavilySearchWrapper(api_key=config.TAVILY_API_KEY)
 
     def progress_callback(data):
-        publish(EventType.ENGINE_PROGRESS, {"engine": "query", **data})
+        publish(EventType.ENGINE_PROGRESS, {"engine": "trend", **data})
 
     return run_research(query, config, llm_client, search_agency, progress_callback)
 

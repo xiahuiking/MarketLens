@@ -11,7 +11,7 @@ class NormalizeReportsNode:
         from ..agent import _stringify
         reports = state.get("reports", [])
         keys = ["query_engine", "media_engine", "insight_engine"]
-        engine_names = {"query_engine": "QueryEngine", "media_engine": "MediaEngine", "insight_engine": "InsightEngine"}
+        engine_names = {"query_engine": "TrendEngine", "media_engine": "CompetitorEngine", "insight_engine": "ReviewEngine"}
         normalized = {}
         for idx, key in enumerate(keys):
             value = reports[idx] if idx < len(reports) else ""

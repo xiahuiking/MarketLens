@@ -136,9 +136,9 @@ class ReportTask:
 # ── Input file checks ───────────────────────────────────────────────────────
 
 ENGINE_INPUT_DIRS = {
-    "insight": "data/report/insight",
-    "media": "data/report/media",
-    "query": "data/report/query",
+    "review": "data/report/review",
+    "competitor": "data/report/competitor",
+    "trend": "data/report/trend",
 }
 FORUM_LOG_PATH = "logs/forum.log"
 
@@ -179,7 +179,7 @@ def check_engines_ready() -> dict[str, Any]:
 def _load_input_files(file_paths: dict[str, str]) -> dict[str, Any]:
     """Load engine reports and forum log content."""
     content = {'reports': [], 'forum_logs': ''}
-    for engine in ('query', 'media', 'insight'):
+    for engine in ('trend', 'competitor', 'review'):
         path = file_paths.get(engine)
         try:
             content['reports'].append(open(path, encoding='utf-8').read() if path else "")

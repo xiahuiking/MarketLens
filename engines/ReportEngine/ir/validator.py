@@ -212,7 +212,7 @@ class IRValidator:
         """单引擎发言块需标注engine并包含子blocks"""
         engine_raw = block.get("engine")
         engine = engine_raw.lower() if isinstance(engine_raw, str) else None
-        if engine not in {"insight", "media", "query"}:
+        if engine not in {"review", "competitor", "trend"}:
             errors.append(f"{path}.engine 取值非法: {engine_raw}")
         title = block.get("title")
         expected_title = ENGINE_AGENT_TITLES.get(engine) if engine else None

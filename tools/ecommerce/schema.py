@@ -57,7 +57,7 @@ CREATE TABLE IF NOT EXISTS review (
 
 async def init_ecommerce_tables() -> None:
     """创建电商表（幂等，可重复执行）。"""
-    from engines.InsightEngine.utils.db import get_async_engine
+    from engines.ReviewEngine.utils.db import get_async_engine
 
     engine = get_async_engine()
     async with engine.begin() as conn:
