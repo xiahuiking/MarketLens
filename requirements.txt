@@ -21,6 +21,7 @@ SQLAlchemy==2.0.43
 greenlet==3.5.5             # SQLAlchemy 异步引擎 (create_async_engine) 必需
 aiomysql==0.3.2             # MySQL 异步驱动 (mysql+aiomysql://)
 PyMySQL==1.1.2              # MySQL 同步驱动
+cryptography==50.0.1        # PyMySQL 连接 MySQL 8.0+ 的 caching_sha2_password 认证所需
 asyncpg==0.31.0             # PostgreSQL 异步驱动 (postgresql+asyncpg://)
 
 # ================== 搜索 ====================
