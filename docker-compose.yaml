@@ -1,7 +1,7 @@
 services:
   db:
     image: docker.m.daocloud.io/library/mysql:8.0
-    container_name: sentinelai-db
+    container_name: marketlens-db
     restart: unless-stopped
     environment:
       MYSQL_ROOT_PASSWORD: ${DB_PASSWORD:-Atguigu.123}
@@ -24,7 +24,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.backend
-    container_name: sentinelai-backend
+    container_name: marketlens-backend
     restart: unless-stopped
     depends_on:
       db:
@@ -88,7 +88,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.frontend
-    container_name: sentinelai-frontend
+    container_name: marketlens-frontend
     restart: unless-stopped
     depends_on:
       backend:
