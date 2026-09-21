@@ -10,8 +10,8 @@ from typing import Any, Callable, Dict, Optional
 
 from loguru import logger
 
-from .context import MediaContext
-from .graph import build_media_graph
+from .context import CompetitorContext
+from .graph import build_competitor_graph
 from .llms import LLMClient
 
 
@@ -23,10 +23,10 @@ def run_research(
     progress_callback: Optional[Callable] = None,
     save_report: bool = True,
 ) -> Dict[str, Any]:
-    """Execute media research, return dict with final_report and paragraphs."""
-    logger.info(f"\n{'=' * 60}\n开始媒体研究: {query}\n{'=' * 60}")
+    """Execute competitor research, return dict with final_report and paragraphs."""
+    logger.info(f"\n{'=' * 60}\n开始竞品研究: {query}\n{'=' * 60}")
 
-    ctx = MediaContext(
+    ctx = CompetitorContext(
         llm_client=llm_client,
         config=config,
         search_agency=search_agency,
@@ -36,14 +36,14 @@ def run_research(
     os.makedirs(config.OUTPUT_DIR, exist_ok=True)
 
     try:
-        graph = build_media_graph(ctx)
+        graph = build_competitor_graph(ctx)
         initial_state = {
             "query": query,
             "save_report": save_report,
             "max_reflections": config.MAX_REFLECTIONS,
         }
         result = graph.invoke(initial_state, {"recursion_limit": 100})
-        logger.info("媒体研究完成！")
+        logger.info("竞品研究完成！")
         return {
             "final_report": result.get("final_report", ""),
             "report_title": result.get("report_title", ""),

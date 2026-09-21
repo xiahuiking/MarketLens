@@ -6,7 +6,7 @@ import json
 
 from loguru import logger
 
-from ..state import MediaGraphState
+from ..state import CompetitorGraphState
 from ..prompts import SYSTEM_PROMPT_REPORT_FORMATTING
 from ..utils.text_processing import (
     remove_reasoning_from_output,
@@ -20,7 +20,7 @@ class FormatReportNode:
     def __init__(self, ctx):
         self.ctx = ctx
 
-    def __call__(self, state: MediaGraphState) -> dict:
+    def __call__(self, state: CompetitorGraphState) -> dict:
         self._pc({"status": "finalizing", "message": "正在生成最终报告...", "progress_pct": 90})
         logger.info("\n[步骤 3] 生成最终报告...")
         paragraphs = state["paragraphs"]

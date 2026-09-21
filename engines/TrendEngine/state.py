@@ -3,7 +3,7 @@ from typing import Optional
 from typing_extensions import TypedDict
 
 
-class QueryGraphState(TypedDict, total=False):
+class TrendGraphState(TypedDict, total=False):
     query: str
     save_report: bool
     max_reflections: int

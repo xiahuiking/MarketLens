@@ -10,17 +10,17 @@ from app.services.event_types import EventType
 from app.utils.forum_reader import get_latest_host_speech, format_host_speech_for_prompt
 from engines.common.structured_output import ReflectionSummaryOutput
 
-from ..state import QueryGraphState
+from ..state import TrendGraphState
 from ..prompts import SYSTEM_PROMPT_REFLECTION_SUMMARY
 from ..utils.text_processing import format_search_results_for_prompt
-from ..context import QueryContext
+from ..context import TrendContext
 
 
 class ReflectionSummaryNode:
-    def __init__(self, ctx: QueryContext):
+    def __init__(self, ctx: TrendContext):
         self.ctx = ctx
 
-    def __call__(self, state: QueryGraphState) -> dict:
+    def __call__(self, state: TrendGraphState) -> dict:
         idx = state["current_paragraph_index"]
         para = state["paragraphs"][idx]
         research = para.get("research", {})
@@ -72,13 +72,14 @@ class ReflectionSummaryNode:
             updated[idx]["research"]["is_completed"] = True
             total = len(updated)
             pct = int(20 + (idx + 1) / total * 60)
-            self.ctx.progress_callback({
-                "status": "processing",
-                "message": f"段落 {idx+1}/{total} 完成",
-                "progress_pct": pct,
-                "paragraph_current": idx + 1,
-                "paragraph_total": total,
-            })
+            if self.ctx.progress_callback:
+                self.ctx.progress_callback({
+                    "status": "processing",
+                    "message": f"段落 {idx+1}/{total} 完成",
+                    "progress_pct": pct,
+                    "paragraph_current": idx + 1,
+                    "paragraph_total": total,
+                })
             result["current_paragraph_index"] = idx + 1
 
         return result

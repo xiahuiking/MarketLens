@@ -8,18 +8,19 @@ from datetime import datetime
 
 from loguru import logger
 
-from ..state import InsightGraphState
-from ..context import InsightContext
+from ..state import ReviewGraphState
+from ..context import ReviewContext
 
 
 class SaveReportNode:
     """Save the final report and optional intermediate state to disk."""
 
     def __init__(self, ctx):
-        self.ctx: InsightContext = ctx
+        self.ctx: ReviewContext = ctx
 
-    def __call__(self, state: InsightGraphState) -> dict:
-        self.ctx.progress_callback({"status": "saving", "message": "正在保存报告...", "progress_pct": 95})
+    def __call__(self, state: ReviewGraphState) -> dict:
+        if self.ctx.progress_callback:
+            self.ctx.progress_callback({"status": "saving", "message": "正在保存报告...", "progress_pct": 95})
         if not state.get("save_report", True):
             return {}
 

@@ -1,5 +1,5 @@
 """
-MediaContext — dependency container for CompetitorEngine graph.
+CompetitorContext — dependency container for CompetitorEngine graph.
 
 Holds config, LLM client, search agency, and search dispatch.
 LangGraph node classes receive ctx and pull what they need.
@@ -14,7 +14,7 @@ from .llms import LLMClient
 
 
 @dataclass
-class MediaContext:
+class CompetitorContext:
     """Holds all dependencies needed by CompetitorEngine's LangGraph nodes."""
 
     llm_client: ChatOpenAI

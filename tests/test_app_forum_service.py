@@ -51,7 +51,7 @@ class TestParseForumLogLine:
         r = parse_forum_log_line("[10:00:00] [HOST] a\\nb")
         assert "\n" in r["content"]
 
-    def test_media_agent(self):
+    def test_competitor_agent(self):
         from app.services.forum_service import parse_forum_log_line
         r = parse_forum_log_line("[10:00:00] [COMPETITOR] media result")
         assert r["sender"] == "竞品 Agent"

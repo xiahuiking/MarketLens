@@ -12,19 +12,19 @@ from app.services.event_types import EventType
 from app.utils.forum_reader import get_latest_host_speech, format_host_speech_for_prompt
 from engines.common.structured_output import InitialSummaryOutput
 
-from ..state import MediaGraphState
+from ..state import CompetitorGraphState
 from ..prompts import SYSTEM_PROMPT_FIRST_SUMMARY
 from ..utils.text_processing import format_search_results_for_prompt
-from ..context import MediaContext
+from ..context import CompetitorContext
 
 
 class InitialSummaryNode:
     """Generate initial summary for the current paragraph based on search results."""
 
-    def __init__(self, ctx: MediaContext):
+    def __init__(self, ctx: CompetitorContext):
         self.ctx = ctx
 
-    def __call__(self, state: MediaGraphState) -> dict:
+    def __call__(self, state: CompetitorGraphState) -> dict:
         idx = state["current_paragraph_index"]
         para = state["paragraphs"][idx]
         research = para.get("research", {})

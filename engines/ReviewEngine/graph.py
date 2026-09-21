@@ -1,7 +1,7 @@
 """
 ReviewEngine LangGraph 图定义。
 
-build_insight_graph(ctx) 构建 StateGraph，
+build_review_graph(ctx) 构建 StateGraph，
 将节点类（__call__(state) -> dict）注册到图中。
 """
 
@@ -9,8 +9,8 @@ from typing import Any
 
 from langgraph.graph import END, START, StateGraph
 
-from .context import InsightContext
-from .state import InsightGraphState
+from .context import ReviewContext
+from .state import ReviewGraphState
 from .nodes import (
     FormatReportNode,
     GenerateStructureNode,
@@ -25,13 +25,13 @@ from .nodes import (
 # ── Conditional edge functions (pure, read-only state) ───────────────────
 
 
-def _should_continue_reflection(state: InsightGraphState) -> str:
+def _should_continue_reflection(state: ReviewGraphState) -> str:
     count = state.get("current_reflection_count", 0)
     max_ref = state.get("max_reflections", 3)
     return "reflect_again" if count < max_ref else "next_paragraph"
 
 
-def _has_more_paragraphs(state: InsightGraphState) -> str:
+def _has_more_paragraphs(state: ReviewGraphState) -> str:
     idx = state.get("current_paragraph_index", 0)
     paragraphs = state.get("paragraphs", [])
     return "process_next" if idx < len(paragraphs) else "all_done"
@@ -40,14 +40,14 @@ def _has_more_paragraphs(state: InsightGraphState) -> str:
 # ── Factory ──────────────────────────────────────────────────────────────
 
 
-def build_insight_graph(ctx: InsightContext) -> Any:
+def build_review_graph(ctx: ReviewContext) -> Any:
     """
     Build ReviewEngine's LangGraph StateGraph.
 
     Args:
-        ctx: InsightContext instance providing all dependencies.
+        ctx: ReviewContext instance providing all dependencies.
     """
-    graph = StateGraph(InsightGraphState)
+    graph = StateGraph(ReviewGraphState)
 
     graph.add_node("generate_structure", GenerateStructureNode(ctx))
     graph.add_node("initial_search", InitialSearchNode(ctx))

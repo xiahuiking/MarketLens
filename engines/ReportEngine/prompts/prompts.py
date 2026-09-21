@@ -274,6 +274,13 @@ SYSTEM_PROMPT_HTML_GENERATION = f"""
    - 竞品对比柱状图
    - 论坛讨论活动统计图
 
+   **图表口径要求（必须遵守）**：
+   - 星级分布与情感分布是两个不同口径：星级=购后满意度，情感=评论文本情绪，**不可互相冒充**。
+   - 当某图表的数据来自情感折算（例如用「非常正面=5星、正面=4星、中性=3星、负面=2星、非常负面=1星」
+     把 sentiment_distribution 折成星级），必须在图表标题或图注中写明
+     「由评论文本情感折算，非平台真实星级」，并标注样本量。
+   - 数据源已知时按提供的 source/note 字段标注；真实星级可用时，星级图一律使用真实星级。
+
 4. **内容结构**：
    - 报告标题和摘要
    - 各引擎分析结果整合
@@ -366,7 +373,7 @@ SYSTEM_PROMPT_CHAPTER_JSON_REPAIR = f"""
 """
 
 SYSTEM_PROMPT_CHAPTER_JSON_RECOVERY = f"""
-你是Report/Forum/Insight/Media联合的“JSON抢修官”，会拿到章节生成时的全部约束(generationPayload)以及原始失败输出(rawChapterOutput)。
+你是Report/Forum/Review/Competitor联合的“JSON抢修官”，会拿到章节生成时的全部约束(generationPayload)以及原始失败输出(rawChapterOutput)。
 
 请遵守：
 1. 章节必须满足IR版本 {IR_VERSION} 规范，block.type 仅能使用：{', '.join(ALLOWED_BLOCK_TYPES)}；

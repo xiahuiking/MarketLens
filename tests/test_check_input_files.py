@@ -30,8 +30,8 @@ def test_check_input_files():
     print(f"[PASS] check_input_files: ready=True, files={list(result.get('latest_files', {}).keys())}")
 
 
-def test_generate_report_without_insight():
-    """2 reports (media + query, no insight) still generates HTML."""
+def test_generate_report_without_review():
+    """2 reports (competitor + trend, no review) still generates HTML."""
     from ReportEngine.agent import generate_report
     from ReportEngine.utils.config import Settings
 
@@ -48,16 +48,16 @@ def test_generate_report_without_insight():
         with patch("ReportEngine.nodes.plan_budget.PlanBudgetNode.run", return_value={"totalWords": 1000, "chapters": [{"chapterId": "S1", "targetWords": 500}, {"chapterId": "S2", "targetWords": 500}]}):
             with patch("ReportEngine.nodes.generate_chapters.GenerateChaptersNode.run", side_effect=fake_chapter):
                 with patch("ReportEngine.nodes.select_template.SelectTemplateNode.run", return_value={"template_name": "test", "template_content": _CUSTOM_TEMPLATE, "selection_reason": "test"}):
-                    reports = ["# QueryEngine 报告", "# MediaEngine 报告"]
+                    reports = ["# TrendEngine 报告", "# CompetitorEngine 报告"]
                     result = generate_report(query="市场分析", reports=reports, forum_logs="论坛日志", custom_template=_CUSTOM_TEMPLATE, save_report=False, config=config)
 
     html = result.get("html_content", "")
     assert isinstance(html, str) and len(html) > 100, f"HTML 不足: {len(html)}"
     assert "<html" in html.lower() or "<!doctype" in html.lower()
-    print(f"[PASS] generate_report without insight: HTML {len(html)} chars")
+    print(f"[PASS] generate_report without review: HTML {len(html)} chars")
 
 
 if __name__ == "__main__":
     test_check_input_files()
-    test_generate_report_without_insight()
+    test_generate_report_without_review()
     print("\n✅ 全部通过！")

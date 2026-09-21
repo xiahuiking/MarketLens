@@ -14,7 +14,10 @@ from .sentiment_analyzer import (
     SentimentResult,
     BatchSentimentResult,
     multilingual_sentiment_analyzer,
-    analyze_sentiment
+    analyze_sentiment,
+    warmup_sentiment_analyzer,
+    probe_sentiment_dependencies,
+    get_sentiment_analyzer,
 )
 from .clustering import ClusteringService
 from .aspect_sentiment import (
@@ -35,6 +38,9 @@ __all__ = [
     "BatchSentimentResult",
     "multilingual_sentiment_analyzer",
     "analyze_sentiment",
+    "warmup_sentiment_analyzer",
+    "probe_sentiment_dependencies",
+    "get_sentiment_analyzer",
     "ClusteringService",
     "AspectSentimentAnalyzer",
     "AspectSentiment",

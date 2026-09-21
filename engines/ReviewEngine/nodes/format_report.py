@@ -6,22 +6,22 @@ import json
 
 from loguru import logger
 
-from ..state import InsightGraphState
+from ..state import ReviewGraphState
 from ..prompts import SYSTEM_PROMPT_REPORT_FORMATTING
 from ..utils.text_processing import (
     remove_reasoning_from_output,
     clean_markdown_tags,
 )
-from ..context import InsightContext
+from ..context import ReviewContext
 
 
 class FormatReportNode:
     """Format the completed paragraph summaries into a final Markdown report."""
 
     def __init__(self, ctx):
-        self.ctx:InsightContext = ctx
+        self.ctx:ReviewContext = ctx
 
-    def __call__(self, state: InsightGraphState) -> dict:
+    def __call__(self, state: ReviewGraphState) -> dict:
         self._pc({"status": "finalizing", "message": "正在生成最终报告...", "progress_pct": 90})
         logger.info("\n[步骤 3] 生成最终报告...")
         paragraphs = state["paragraphs"]

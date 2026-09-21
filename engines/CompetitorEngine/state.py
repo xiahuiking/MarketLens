@@ -8,7 +8,7 @@ from typing import Optional
 from typing_extensions import TypedDict
 
 
-class MediaGraphState(TypedDict, total=False):
+class CompetitorGraphState(TypedDict, total=False):
     """CompetitorEngine 的 LangGraph 状态"""
 
     query: str

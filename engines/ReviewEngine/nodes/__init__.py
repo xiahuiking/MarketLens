@@ -2,7 +2,7 @@
 LangGraph node classes for ReviewEngine.
 
 Each class implements __call__(state) -> dict and is registered
-directly as a LangGraph node in build_insight_graph().
+directly as a LangGraph node in build_review_graph().
 """
 
 from .generate_structure import GenerateStructureNode

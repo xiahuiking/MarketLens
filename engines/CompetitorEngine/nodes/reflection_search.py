@@ -9,7 +9,7 @@ from datetime import datetime
 from loguru import logger
 
 from engines.common.structured_output import SearchOutput
-from ..state import MediaGraphState
+from ..state import CompetitorGraphState
 from ..prompts import SYSTEM_PROMPT_REFLECTION
 from ._search_utils import execute_search_and_convert
 
@@ -20,7 +20,7 @@ class ReflectionSearchNode:
     def __init__(self, ctx):
         self.ctx = ctx
 
-    def __call__(self, state: MediaGraphState) -> dict:
+    def __call__(self, state: CompetitorGraphState) -> dict:
         idx = state["current_paragraph_index"]
         para = state["paragraphs"][idx]
         count = state.get("current_reflection_count", 0)

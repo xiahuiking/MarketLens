@@ -31,6 +31,10 @@ class SearchOutput(BaseModel):
     end_date: Optional[str] = Field(default=None, description="结束日期 YYYY-MM-DD，仅 get_review_trend")
     product_queries: Optional[List[str]] = Field(default=None, description="商品名列表，仅 compare_products")
     texts: Optional[List[str]] = Field(default=None, description="文本列表，仅 analyze_sentiment")
+    enable_sentiment: Optional[bool] = Field(
+        default=None,
+        description="本次搜索是否对评论做情感分析；不填=用默认配置，纯统计/趋势类查询可显式置 false",
+    )
 
 
 # ── Initial summary (initial_summary node) ────────────────────────

@@ -1,22 +1,22 @@
-"""TrendEngine LangGraph 图定义。build_query_graph(ctx) 构建 StateGraph。"""
+"""TrendEngine LangGraph 图定义。build_trend_graph(ctx) 构建 StateGraph。"""
 
 from typing import Any
 from langgraph.graph import END, START, StateGraph
-from .context import QueryContext
-from .state import QueryGraphState
+from .context import TrendContext
+from .state import TrendGraphState
 from .nodes import FormatReportNode, GenerateStructureNode, InitialSearchNode, InitialSummaryNode, ReflectionSearchNode, ReflectionSummaryNode, SaveReportNode
 
 
-def _should_continue_reflection(state: QueryGraphState) -> str:
+def _should_continue_reflection(state: TrendGraphState) -> str:
     return "reflect_again" if state.get("current_reflection_count", 0) < state.get("max_reflections", 2) else "next_paragraph"
 
 
-def _has_more_paragraphs(state: QueryGraphState) -> str:
+def _has_more_paragraphs(state: TrendGraphState) -> str:
     return "process_next" if state.get("current_paragraph_index", 0) < len(state.get("paragraphs", [])) else "all_done"
 
 
-def build_query_graph(ctx: QueryContext) -> Any:
-    graph = StateGraph(QueryGraphState)
+def build_trend_graph(ctx: TrendContext) -> Any:
+    graph = StateGraph(TrendGraphState)
     graph.add_node("generate_structure", GenerateStructureNode(ctx))
     graph.add_node("initial_search", InitialSearchNode(ctx))
     graph.add_node("initial_summary", InitialSummaryNode(ctx))

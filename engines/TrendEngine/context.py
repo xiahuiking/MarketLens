@@ -1,4 +1,4 @@
-"""QueryContext — dependency container for TrendEngine graph.
+"""TrendContext — dependency container for TrendEngine graph.
 
 TrendEngine 定位：权威信息核查引擎
 - 使用 Bocha 搜索，LLM 提示词侧重官方来源、数据核查、事实验证
@@ -14,7 +14,7 @@ from .llms import LLMClient
 
 
 @dataclass
-class QueryContext:
+class TrendContext:
     llm_client: LLMClient
     config: Any
     search_agency: Any

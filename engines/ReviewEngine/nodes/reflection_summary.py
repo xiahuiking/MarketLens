@@ -11,19 +11,19 @@ from app.services.event_bus import publish
 from app.services.event_types import EventType
 from app.utils.forum_reader import get_latest_host_speech, format_host_speech_for_prompt
 from engines.common.structured_output import ReflectionSummaryOutput
-from ..state import InsightGraphState
+from ..state import ReviewGraphState
 from ..prompts import SYSTEM_PROMPT_REFLECTION_SUMMARY
 from ..utils import format_search_results_for_prompt
-from ..context import InsightContext
+from ..context import ReviewContext
 
 
 class ReflectionSummaryNode:
     """Update the current paragraph's summary with reflection search results."""
 
-    def __init__(self, ctx: InsightContext):
+    def __init__(self, ctx: ReviewContext):
         self.ctx = ctx
 
-    def __call__(self, state: InsightGraphState) -> dict:
+    def __call__(self, state: ReviewGraphState) -> dict:
         idx = state["current_paragraph_index"]
         para = state["paragraphs"][idx]
         research = para.get("research", {})
@@ -33,7 +33,8 @@ class ReflectionSummaryNode:
 
         search_query = current_search.get("query", "")
         search_results = current_search.get("results", [])
-        search_metadata = current_search.get("metadata", {})
+        # 优先段落级累积元信息（旧状态无该字段时回退到本次搜索的 metadata）
+        search_metadata = research.get("metadata") or current_search.get("metadata") or {}
 
         summary_input = {
             "title": para["title"],
@@ -82,13 +83,14 @@ class ReflectionSummaryNode:
             updated[idx]["research"]["is_completed"] = True
             total = len(updated)
             pct = int(20 + (idx + 1) / total * 60)
-            self.ctx.progress_callback({
-                "status": "processing",
-                "message": f"段落 {idx+1}/{total} 完成",
-                "progress_pct": pct,
-                "paragraph_current": idx + 1,
-                "paragraph_total": total,
-            })
+            if self.ctx.progress_callback:
+                self.ctx.progress_callback({
+                    "status": "processing",
+                    "message": f"段落 {idx+1}/{total} 完成",
+                    "progress_pct": pct,
+                    "paragraph_current": idx + 1,
+                    "paragraph_total": total,
+                })
             result["current_paragraph_index"] = idx + 1
 
         return result

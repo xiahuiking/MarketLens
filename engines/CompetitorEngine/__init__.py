@@ -1,5 +1,5 @@
 """
-CompetitorEngine — media research engine using LangGraph.
+CompetitorEngine — competitor research engine using LangGraph.
 
 Entry point: run_research() from .agent.
 """

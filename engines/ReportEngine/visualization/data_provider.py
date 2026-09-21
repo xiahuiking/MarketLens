@@ -14,6 +14,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from loguru import logger
@@ -116,6 +117,71 @@ class VisualizationProvider:
             result["负面"] = negative
         return result
 
+    def _sentiment_from_review_state(self, query: str) -> Dict[str, int]:
+        """读取 ReviewEngine 真实模型跑出的情感分布（来自最近一次运行的 state 快照）。
+
+        星级是"满意度"的代理指标，和评论正文的情感倾向并不等价（1 星差评常写
+        "东西不错但物流太慢"）。只要 ReviewEngine 的模型结果落盘了，就优先用它。
+
+        容错：读不到任何快照就返回 {}，由调用方回退到星级代理。
+        """
+        try:
+            import glob as _glob
+            import json as _json
+            import os
+            from app.config import PROJECT_ROOT
+
+            pattern = str(Path(PROJECT_ROOT) / "data" / "report" / "review" / "state_*.json")
+            files = _glob.glob(pattern)
+            if not files:
+                return {}
+
+            q = (query or "").strip().lower()
+
+            def _matches(path: str) -> bool:
+                try:
+                    with open(path, "r", encoding="utf-8") as fh:
+                        state_query = str(_json.load(fh).get("query", "")).lower()
+                except Exception:
+                    return False
+                if not q or not state_query:
+                    return False
+                return q in state_query or state_query in q
+
+            candidates = [p for p in files if _matches(p)] or files
+            candidates.sort(key=os.path.getmtime, reverse=True)
+
+            best: Dict[str, int] = {}
+            best_total = 0
+            for path in candidates[:5]:
+                try:
+                    with open(path, "r", encoding="utf-8") as fh:
+                        state = _json.load(fh)
+                except Exception:
+                    continue
+                for para in state.get("paragraphs") or []:
+                    research = para.get("research") or {}
+                    meta = research.get("metadata") or (research.get("current_search") or {}).get("metadata") or {}
+                    sa = meta.get("sentiment_analysis") or {}
+                    if sa.get("available") is False:
+                        continue
+                    dist = sa.get("sentiment_distribution") or {}
+                    total = int(sa.get("total_analyzed") or 0)
+                    # 同一 state 内按"分析条数最多的那一段"取，避免跨段落重复计数
+                    if total > best_total and dist:
+                        best_total = total
+                        best = {str(k): int(v) for k, v in dist.items()}
+                if best:
+                    break
+            if best:
+                logger.info(
+                    f"可视化：使用 ReviewEngine 模型情感分布（{best_total} 条）{best}"
+                )
+            return best
+        except Exception as exc:  # pragma: no cover - 防御性容错
+            logger.debug(f"可视化：读取 ReviewEngine 情感快照失败 {exc}")
+            return {}
+
     def _review_trend(self, query: str, asins: List[str]) -> List[Dict[str, Any]]:
         start, end = self._review_date_range(asins)
         if not start or not end:
@@ -195,7 +261,15 @@ class VisualizationProvider:
 
         rating_dist = self._rating_distribution(query)
         data["rating_distribution"] = rating_dist
-        data["sentiment_distribution"] = self._sentiment_from_rating(rating_dist)
+
+        # 情感分布优先用 ReviewEngine 模型结果，拿不到才退回星级代理
+        model_sentiment = self._sentiment_from_review_state(query)
+        if model_sentiment:
+            data["sentiment_distribution"] = model_sentiment
+            data["sentiment_source"] = "model"
+        else:
+            data["sentiment_distribution"] = self._sentiment_from_rating(rating_dist)
+            data["sentiment_source"] = "rating" if data["sentiment_distribution"] else "none"
 
         asins = self._resolve_asins(query, limit=5)
         data["review_trend"] = self._review_trend(query, asins)
@@ -230,10 +304,16 @@ class VisualizationProvider:
                 "data": {f"{k}星": v for k, v in sorted(data["rating_distribution"].items())},
             })
         if data.get("sentiment_distribution"):
+            source = data.get("sentiment_source", "none")
             bundles.append({
                 "type": "sentiment_distribution",
                 "title": "评论情感分布",
                 "data": data["sentiment_distribution"],
+                # 标明口径：model = 评论情感模型；rating = 星级代理，两者不可混用
+                "source": source,
+                "note": "情感模型直接分析评论文本得出"
+                if source == "model"
+                else "由星级折算的代理指标，非文本情感模型结果",
             })
         if data.get("review_trend"):
             bundles.append({

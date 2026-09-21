@@ -7,7 +7,7 @@
 mock 策略：
 - LLMClient.structured_invoke → 按 output_model 返回对应 Pydantic 模型（5 个节点使用）
 - LLMClient.stream_invoke_to_string → 返回固定 Markdown（format_report 节点使用）
-- InsightContext.execute_search → 返回假的 DBResponse（数据库探测 + 各搜索节点使用）
+- ReviewContext.execute_search → 返回假的 DBResponse（数据库探测 + 各搜索节点使用）
 """
 
 import sys
@@ -25,7 +25,7 @@ for _p in [str(_proj_root), str(_proj_root / "engines")]:
         sys.path.insert(0, _p)
 
 from engines.ReviewEngine.agent import run_research  # noqa: E402
-from engines.ReviewEngine.context import InsightContext  # noqa: E402
+from engines.ReviewEngine.context import ReviewContext  # noqa: E402
 from engines.ReviewEngine.tools.search import DBResponse, QueryResult  # noqa: E402
 from engines.common.structured_output import (  # noqa: E402
     ReportStructure,
@@ -123,7 +123,7 @@ def agent(tmp_path):
     patches = [
         patch.object(llm_client, "structured_invoke", side_effect=_fake_structured_invoke),
         patch.object(llm_client, "stream_invoke_to_string", return_value=_FAKE_FINAL_REPORT),
-        patch.object(InsightContext, "execute_search", return_value=_fake_db_response()),
+        patch.object(ReviewContext, "execute_search", return_value=_fake_db_response()),
     ]
     for p in patches:
         p.start()
@@ -147,12 +147,12 @@ class TestReviewEngineE2E:
     """ReviewEngine 端到端测试（全 mock 外部依赖）。"""
 
     def test_import_chain(self):
-        from engines.ReviewEngine.graph import build_insight_graph
-        from engines.ReviewEngine.state import InsightGraphState
+        from engines.ReviewEngine.graph import build_review_graph
+        from engines.ReviewEngine.state import ReviewGraphState
         from engines.ReviewEngine.tools import ProductReviewDB
         assert run_research is not None
-        assert build_insight_graph is not None
-        assert InsightGraphState is not None
+        assert build_review_graph is not None
+        assert ReviewGraphState is not None
         assert callable(ProductReviewDB)
 
     def test_research_returns_report(self, agent):
@@ -186,7 +186,7 @@ class TestReviewEngineE2E:
         assert md_files[0].read_text(encoding="utf-8") == _FAKE_FINAL_REPORT
 
     def test_db_failure_propagates(self, agent):
-        with patch.object(InsightContext, "execute_search", side_effect=RuntimeError("DB unreachable")):
+        with patch.object(ReviewContext, "execute_search", side_effect=RuntimeError("DB unreachable")):
             with pytest.raises(RuntimeError):
                 agent.research("测试", save_report=False)
 
@@ -198,39 +198,39 @@ class TestConditionalEdgeFunctions:
 
     def test_should_continue_reflection_before_max(self):
         from engines.ReviewEngine.graph import _should_continue_reflection
-        from engines.ReviewEngine.state import InsightGraphState
+        from engines.ReviewEngine.state import ReviewGraphState
 
-        s = InsightGraphState(current_reflection_count=0, max_reflections=3)
+        s = ReviewGraphState(current_reflection_count=0, max_reflections=3)
         assert _should_continue_reflection(s) == "reflect_again"
         s["current_reflection_count"] = 2
         assert _should_continue_reflection(s) == "reflect_again"
 
     def test_should_continue_reflection_at_max(self):
         from engines.ReviewEngine.graph import _should_continue_reflection
-        from engines.ReviewEngine.state import InsightGraphState
+        from engines.ReviewEngine.state import ReviewGraphState
 
-        s = InsightGraphState(current_reflection_count=3, max_reflections=3)
+        s = ReviewGraphState(current_reflection_count=3, max_reflections=3)
         assert _should_continue_reflection(s) == "next_paragraph"
 
     def test_has_more_paragraphs_before_end(self):
         from engines.ReviewEngine.graph import _has_more_paragraphs
-        from engines.ReviewEngine.state import InsightGraphState
+        from engines.ReviewEngine.state import ReviewGraphState
 
-        s = InsightGraphState(current_paragraph_index=0, paragraphs=[{"title": "a"}, {"title": "b"}])
+        s = ReviewGraphState(current_paragraph_index=0, paragraphs=[{"title": "a"}, {"title": "b"}])
         assert _has_more_paragraphs(s) == "process_next"
 
     def test_has_more_paragraphs_at_end(self):
         from engines.ReviewEngine.graph import _has_more_paragraphs
-        from engines.ReviewEngine.state import InsightGraphState
+        from engines.ReviewEngine.state import ReviewGraphState
 
-        s = InsightGraphState(current_paragraph_index=2, paragraphs=[{"title": "a"}, {"title": "b"}])
+        s = ReviewGraphState(current_paragraph_index=2, paragraphs=[{"title": "a"}, {"title": "b"}])
         assert _has_more_paragraphs(s) == "all_done"
 
     def test_has_more_paragraphs_empty(self):
         from engines.ReviewEngine.graph import _has_more_paragraphs
-        from engines.ReviewEngine.state import InsightGraphState
+        from engines.ReviewEngine.state import ReviewGraphState
 
-        s = InsightGraphState(current_paragraph_index=0, paragraphs=[])
+        s = ReviewGraphState(current_paragraph_index=0, paragraphs=[])
         assert _has_more_paragraphs(s) == "all_done"
 
 

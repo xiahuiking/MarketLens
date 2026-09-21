@@ -5,20 +5,21 @@ LangGraph node: generate report structure from query.
 from loguru import logger
 
 from engines.common.structured_output import ReportStructure
-from ..state import InsightGraphState
+from ..state import ReviewGraphState
 from ..prompts import SYSTEM_PROMPT_REPORT_STRUCTURE
-from ..context import InsightContext
+from ..context import ReviewContext
 
 
 class GenerateStructureNode:
     """Generate the report structure (paragraph list) from the user's query."""
 
-    def __init__(self, ctx: InsightContext):
+    def __init__(self, ctx: ReviewContext):
         self.ctx = ctx
 
-    def __call__(self, state: InsightGraphState) -> dict:
+    def __call__(self, state: ReviewGraphState) -> dict:
         query = state["query"]
-        self.ctx.progress_callback({"status": "structure", "message": "正在生成报告结构...", "progress_pct": 10})
+        if self.ctx.progress_callback:
+            self.ctx.progress_callback({"status": "structure", "message": "正在生成报告结构...", "progress_pct": 10})
         logger.info(f"\n{'=' * 60}\n[LangGraph] 生成报告结构: {query}")
 
         try:

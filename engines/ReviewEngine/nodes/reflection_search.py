@@ -9,19 +9,19 @@ from datetime import datetime
 from loguru import logger
 
 from engines.common.structured_output import SearchOutput
-from ..state import InsightGraphState
+from ..state import ReviewGraphState
 from ..prompts import SYSTEM_PROMPT_REFLECTION
-from ..context import InsightContext
-from ._search_utils import execute_search_and_convert
+from ..context import ReviewContext
+from ._search_utils import execute_search_and_convert, merge_search_metadata
 
 
 class ReflectionSearchNode:
     """Generate a reflection (follow-up) search query and execute search."""
 
-    def __init__(self, ctx: InsightContext):
+    def __init__(self, ctx: ReviewContext):
         self.ctx = ctx
 
-    def __call__(self, state: InsightGraphState) -> dict:
+    def __call__(self, state: ReviewGraphState) -> dict:
         idx = state["current_paragraph_index"]
         para = state["paragraphs"][idx]
         count = state.get("current_reflection_count", 0)
@@ -64,5 +64,7 @@ class ReflectionSearchNode:
             "query": search_query, "tool": search_tool, "results": search_results,
             "metadata": search_metadata,
         }
+        # 累积而非覆盖：空结果/无后处理工具的搜索不会清掉此前真实产出的情感与聚类结果
+        research["metadata"] = merge_search_metadata(research.get("metadata"), search_metadata)
 
         return {"paragraphs": updated}

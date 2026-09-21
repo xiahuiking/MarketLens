@@ -3456,15 +3456,15 @@ class HTMLRenderer:
   --card-bg: {card}; /* 含义：卡片/容器背景色；设置：在 themeTokens 中覆盖或改此默认值 */
   --border-color: {border}; /* 含义：常规边框色；设置：在 themeTokens 中覆盖或改此默认值 */
   --shadow-color: {shadow}; /* 含义：阴影基色；设置：在 themeTokens 中覆盖或改此默认值 */
-  --engine-insight-bg: #f4f7ff; /* 含义：Insight 引擎卡片背景；设置：在 themeTokens 中覆盖或改此默认值 */
-  --engine-insight-border: #dce7ff; /* 含义：Insight 引擎边框；设置：在 themeTokens 中覆盖或改此默认值 */
-  --engine-insight-text: #1f4b99; /* 含义：Insight 引擎文字色；设置：在 themeTokens 中覆盖或改此默认值 */
-  --engine-media-bg: #fff6ec; /* 含义：Media 引擎卡片背景；设置：在 themeTokens 中覆盖或改此默认值 */
-  --engine-media-border: #ffd9b3; /* 含义：Media 引擎边框；设置：在 themeTokens 中覆盖或改此默认值 */
-  --engine-media-text: #b65a1a; /* 含义：Media 引擎文字色；设置：在 themeTokens 中覆盖或改此默认值 */
-  --engine-query-bg: #f1fbf5; /* 含义：Query 引擎卡片背景；设置：在 themeTokens 中覆盖或改此默认值 */
-  --engine-query-border: #c7ebd6; /* 含义：Query 引擎边框；设置：在 themeTokens 中覆盖或改此默认值 */
-  --engine-query-text: #1d6b3f; /* 含义：Query 引擎文字色；设置：在 themeTokens 中覆盖或改此默认值 */
+  --engine-review-bg: #f4f7ff; /* 含义：口碑引擎卡片背景；设置：在 themeTokens 中覆盖或改此默认值 */
+  --engine-review-border: #dce7ff; /* 含义：口碑引擎边框；设置：在 themeTokens 中覆盖或改此默认值 */
+  --engine-review-text: #1f4b99; /* 含义：口碑引擎文字色；设置：在 themeTokens 中覆盖或改此默认值 */
+  --engine-competitor-bg: #fff6ec; /* 含义：竞品引擎卡片背景；设置：在 themeTokens 中覆盖或改此默认值 */
+  --engine-competitor-border: #ffd9b3; /* 含义：竞品引擎边框；设置：在 themeTokens 中覆盖或改此默认值 */
+  --engine-competitor-text: #b65a1a; /* 含义：竞品引擎文字色；设置：在 themeTokens 中覆盖或改此默认值 */
+  --engine-trend-bg: #f1fbf5; /* 含义：趋势引擎卡片背景；设置：在 themeTokens 中覆盖或改此默认值 */
+  --engine-trend-border: #c7ebd6; /* 含义：趋势引擎边框；设置：在 themeTokens 中覆盖或改此默认值 */
+  --engine-trend-text: #1d6b3f; /* 含义：趋势引擎文字色；设置：在 themeTokens 中覆盖或改此默认值 */
   --engine-quote-shadow: 0 12px 30px rgba(0,0,0,0.04); /* 含义：Engine 引用阴影；设置：在 themeTokens 中覆盖或改此默认值 */
   --swot-strength: #1c7f6e; /* 含义：SWOT 优势主色；设置：在 themeTokens 中覆盖或改此默认值 */
   --swot-weakness: #c0392b; /* 含义：SWOT 劣势主色；设置：在 themeTokens 中覆盖或改此默认值 */
@@ -3532,15 +3532,15 @@ class HTMLRenderer:
   --card-bg: #1f1f1f; /* 含义：卡片/容器背景色；设置：在 themeTokens 中覆盖或改此默认值 */
   --border-color: #2c2c2c; /* 含义：常规边框色；设置：在 themeTokens 中覆盖或改此默认值 */
   --shadow-color: rgba(0, 0, 0, 0.4); /* 含义：阴影基色；设置：在 themeTokens 中覆盖或改此默认值 */
-  --engine-insight-bg: rgba(145, 202, 255, 0.08); /* 含义：Insight 引擎卡片背景；设置：在 themeTokens 中覆盖或改此默认值 */
-  --engine-insight-border: rgba(145, 202, 255, 0.45); /* 含义：Insight 引擎边框；设置：在 themeTokens 中覆盖或改此默认值 */
-  --engine-insight-text: #9dc2ff; /* 含义：Insight 引擎文字色；设置：在 themeTokens 中覆盖或改此默认值 */
-  --engine-media-bg: rgba(255, 196, 138, 0.08); /* 含义：Media 引擎卡片背景；设置：在 themeTokens 中覆盖或改此默认值 */
-  --engine-media-border: rgba(255, 196, 138, 0.45); /* 含义：Media 引擎边框；设置：在 themeTokens 中覆盖或改此默认值 */
-  --engine-media-text: #ffcb9b; /* 含义：Media 引擎文字色；设置：在 themeTokens 中覆盖或改此默认值 */
-  --engine-query-bg: rgba(141, 215, 165, 0.08); /* 含义：Query 引擎卡片背景；设置：在 themeTokens 中覆盖或改此默认值 */
-  --engine-query-border: rgba(141, 215, 165, 0.45); /* 含义：Query 引擎边框；设置：在 themeTokens 中覆盖或改此默认值 */
-  --engine-query-text: #a7e2ba; /* 含义：Query 引擎文字色；设置：在 themeTokens 中覆盖或改此默认值 */
+  --engine-review-bg: rgba(145, 202, 255, 0.08); /* 含义：口碑引擎卡片背景；设置：在 themeTokens 中覆盖或改此默认值 */
+  --engine-review-border: rgba(145, 202, 255, 0.45); /* 含义：口碑引擎边框；设置：在 themeTokens 中覆盖或改此默认值 */
+  --engine-review-text: #9dc2ff; /* 含义：口碑引擎文字色；设置：在 themeTokens 中覆盖或改此默认值 */
+  --engine-competitor-bg: rgba(255, 196, 138, 0.08); /* 含义：竞品引擎卡片背景；设置：在 themeTokens 中覆盖或改此默认值 */
+  --engine-competitor-border: rgba(255, 196, 138, 0.45); /* 含义：竞品引擎边框；设置：在 themeTokens 中覆盖或改此默认值 */
+  --engine-competitor-text: #ffcb9b; /* 含义：竞品引擎文字色；设置：在 themeTokens 中覆盖或改此默认值 */
+  --engine-trend-bg: rgba(141, 215, 165, 0.08); /* 含义：趋势引擎卡片背景；设置：在 themeTokens 中覆盖或改此默认值 */
+  --engine-trend-border: rgba(141, 215, 165, 0.45); /* 含义：趋势引擎边框；设置：在 themeTokens 中覆盖或改此默认值 */
+  --engine-trend-text: #a7e2ba; /* 含义：趋势引擎文字色；设置：在 themeTokens 中覆盖或改此默认值 */
   --engine-quote-shadow: 0 12px 28px rgba(0, 0, 0, 0.35); /* 含义：Engine 引用阴影；设置：在 themeTokens 中覆盖或改此默认值 */
   --swot-strength: #1c7f6e; /* 含义：SWOT 优势主色；设置：在 themeTokens 中覆盖或改此默认值 */
   --swot-weakness: #e06754; /* 含义：SWOT 劣势主色；设置：在 themeTokens 中覆盖或改此默认值 */
@@ -4115,9 +4115,9 @@ blockquote {{ /* 含义：引用块 - PDF基础样式；设置：在本块内调
   }} /* 结束 .dark-mode blockquote::after */
 }} /* 结束 @media screen blockquote 液态玻璃 */
 .engine-quote {{ /* 含义：引擎发言块；设置：在本块内调整相关属性 */
-  --engine-quote-bg: var(--engine-insight-bg); /* 含义：主题变量 engine-quote-bg；设置：在 themeTokens 中覆盖或改此默认值 */
-  --engine-quote-border: var(--engine-insight-border); /* 含义：主题变量 engine-quote-border；设置：在 themeTokens 中覆盖或改此默认值 */
-  --engine-quote-text: var(--engine-insight-text); /* 含义：主题变量 engine-quote-text；设置：在 themeTokens 中覆盖或改此默认值 */
+  --engine-quote-bg: var(--engine-review-bg); /* 含义：主题变量 engine-quote-bg；设置：在 themeTokens 中覆盖或改此默认值 */
+  --engine-quote-border: var(--engine-review-border); /* 含义：主题变量 engine-quote-border；设置：在 themeTokens 中覆盖或改此默认值 */
+  --engine-quote-text: var(--engine-review-text); /* 含义：主题变量 engine-quote-text；设置：在 themeTokens 中覆盖或改此默认值 */
   margin: 22px 0; /* 含义：外边距，控制与周围元素的距离；设置：按需调整数值/颜色/变量 */
   padding: 16px 18px; /* 含义：内边距，控制内容与容器边缘的距离；设置：按需调整数值/颜色/变量 */
   border-radius: 14px; /* 含义：圆角；设置：按需调整数值/颜色/变量 */
@@ -4147,16 +4147,16 @@ blockquote {{ /* 含义：引用块 - PDF基础样式；设置：在本块内调
 }} /* 结束 .engine-quote__title */
 .engine-quote__body > *:first-child {{ margin-top: 0; }} /* 含义：.engine-quote__body > * 样式属性；设置：按需调整数值/颜色/变量 */
 .engine-quote__body > *:last-child {{ margin-bottom: 0; }} /* 含义：.engine-quote__body > * 样式属性；设置：按需调整数值/颜色/变量 */
-.engine-quote.engine-media {{ /* 含义：.engine-quote.engine-media 样式区域；设置：在本块内调整相关属性 */
-  --engine-quote-bg: var(--engine-media-bg); /* 含义：主题变量 engine-quote-bg；设置：在 themeTokens 中覆盖或改此默认值 */
-  --engine-quote-border: var(--engine-media-border); /* 含义：主题变量 engine-quote-border；设置：在 themeTokens 中覆盖或改此默认值 */
-  --engine-quote-text: var(--engine-media-text); /* 含义：主题变量 engine-quote-text；设置：在 themeTokens 中覆盖或改此默认值 */
-}} /* 结束 .engine-quote.engine-media */
-.engine-quote.engine-query {{ /* 含义：.engine-quote.engine-query 样式区域；设置：在本块内调整相关属性 */
-  --engine-quote-bg: var(--engine-query-bg); /* 含义：主题变量 engine-quote-bg；设置：在 themeTokens 中覆盖或改此默认值 */
-  --engine-quote-border: var(--engine-query-border); /* 含义：主题变量 engine-quote-border；设置：在 themeTokens 中覆盖或改此默认值 */
-  --engine-quote-text: var(--engine-query-text); /* 含义：主题变量 engine-quote-text；设置：在 themeTokens 中覆盖或改此默认值 */
-}} /* 结束 .engine-quote.engine-query */
+.engine-quote.engine-competitor {{ /* 含义：.engine-quote.engine-competitor 样式区域；设置：在本块内调整相关属性 */
+  --engine-quote-bg: var(--engine-competitor-bg); /* 含义：主题变量 engine-quote-bg；设置：在 themeTokens 中覆盖或改此默认值 */
+  --engine-quote-border: var(--engine-competitor-border); /* 含义：主题变量 engine-quote-border；设置：在 themeTokens 中覆盖或改此默认值 */
+  --engine-quote-text: var(--engine-competitor-text); /* 含义：主题变量 engine-quote-text；设置：在 themeTokens 中覆盖或改此默认值 */
+}} /* 结束 .engine-quote.engine-competitor */
+.engine-quote.engine-trend {{ /* 含义：.engine-quote.engine-trend 样式区域；设置：在本块内调整相关属性 */
+  --engine-quote-bg: var(--engine-trend-bg); /* 含义：主题变量 engine-quote-bg；设置：在 themeTokens 中覆盖或改此默认值 */
+  --engine-quote-border: var(--engine-trend-border); /* 含义：主题变量 engine-quote-border；设置：在 themeTokens 中覆盖或改此默认值 */
+  --engine-quote-text: var(--engine-trend-text); /* 含义：主题变量 engine-quote-text；设置：在 themeTokens 中覆盖或改此默认值 */
+}} /* 结束 .engine-quote.engine-trend */
 .table-wrap {{ /* 含义：表格滚动容器；设置：在本块内调整相关属性 */
   overflow-x: auto; /* 含义：横向溢出处理；设置：按需调整数值/颜色/变量 */
   margin: 20px 0; /* 含义：外边距，控制与周围元素的距离；设置：按需调整数值/颜色/变量 */

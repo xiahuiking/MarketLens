@@ -1,4 +1,5 @@
 """FastAPI main application — primary backend."""
+import asyncio
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -8,9 +9,29 @@ from fastapi.responses import HTMLResponse, FileResponse, Response
 from fastapi.staticfiles import StaticFiles
 from loguru import logger
 
+from app import config as app_config
 from app.services.forum_service import init_forum_log, shutdown_forum_service
 from app.utils.forum_reader import init_forum_reader, shutdown_forum_reader
 from app.routers import system, config, forum, search, events, report
+
+
+async def _warmup_sentiment_if_enabled() -> None:
+    """按配置在启动阶段单线程预热情感模型。
+
+    预热本身是可选优化（默认关闭）：它把数秒的模型加载从"首次搜索"挪到启动阶段，
+    并由单一线程完成导入，从而彻底规避多引擎并发首次导入 transformers 的竞态。
+    失败不阻断启动 —— 运行时仍会按需懒加载并自动重试。
+    """
+    try:
+        if not app_config.settings.SENTIMENT_ANALYSIS_ENABLED:
+            return
+        if not app_config.settings.SENTIMENT_WARMUP_ON_STARTUP:
+            return
+        from engines.ReviewEngine.tools import warmup_sentiment_analyzer
+
+        await asyncio.to_thread(warmup_sentiment_analyzer)
+    except Exception as exc:  # pragma: no cover - 预热失败不应影响服务可用性
+        logger.warning(f"情感分析模型预热跳过: {exc}")
 
 
 @asynccontextmanager
@@ -19,6 +40,7 @@ async def lifespan(app: FastAPI):
     events.init_event_stream()
     init_forum_log()
     init_forum_reader()
+    await _warmup_sentiment_if_enabled()
     logger.info("FastAPI 服务器已启动，共享服务已初始化")
     try:
         yield

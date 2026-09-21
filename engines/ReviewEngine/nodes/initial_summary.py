@@ -11,19 +11,19 @@ from app.services.event_bus import publish
 from app.services.event_types import EventType
 from app.utils.forum_reader import get_latest_host_speech, format_host_speech_for_prompt
 from engines.common.structured_output import InitialSummaryOutput
-from ..state import InsightGraphState
+from ..state import ReviewGraphState
 from ..prompts import SYSTEM_PROMPT_FIRST_SUMMARY
 from ..utils import format_search_results_for_prompt
-from ..context import InsightContext
+from ..context import ReviewContext
 
 
 class InitialSummaryNode:
     """Generate initial summary for the current paragraph based on search results."""
 
-    def __init__(self, ctx: InsightContext):
+    def __init__(self, ctx: ReviewContext):
         self.ctx = ctx
 
-    def __call__(self, state: InsightGraphState) -> dict:
+    def __call__(self, state: ReviewGraphState) -> dict:
         idx = state["current_paragraph_index"]
         para = state["paragraphs"][idx]
         research = para.get("research", {})
@@ -31,7 +31,7 @@ class InitialSummaryNode:
 
         search_query = current_search.get("query", "")
         search_results = current_search.get("results", [])
-        search_metadata = current_search.get("metadata", {})
+        search_metadata = research.get("metadata") or current_search.get("metadata") or {}
         logger.info("  - 生成初始总结...")
 
         summary_input = {

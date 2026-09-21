@@ -32,9 +32,9 @@ _CUSTOM_TEMPLATE = """# 第一章：市场概况
 """
 
 _MOCK_REPORTS = [
-    "# QueryEngine 报告\n查询引擎分析结果。",
-    "# MediaEngine 报告\n媒体引擎分析结果。",
-    "# InsightEngine 报告\n洞察引擎分析结果。",
+    "# TrendEngine 报告\n查询引擎分析结果。",
+    "# CompetitorEngine 报告\n媒体引擎分析结果。",
+    "# ReviewEngine 报告\n口碑引擎分析结果。",
 ]
 
 # ── 节点 mock 返回值 ─────────────────────────────────────────
