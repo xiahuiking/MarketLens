@@ -63,3 +63,22 @@ async def init_ecommerce_tables() -> None:
     async with engine.begin() as conn:
         await conn.execute(text(PRODUCT_TABLE_DDL))
         await conn.execute(text(REVIEW_TABLE_DDL))
+
+
+if __name__ == "__main__":
+    # 供 docker-entrypoint.sh 调用（在仓库根目录执行）：
+    #     python3 -m tools.ecommerce.schema
+    import asyncio
+
+    from engines.ReviewEngine.utils.db import get_async_engine
+
+    async def _main() -> None:
+        await init_ecommerce_tables()
+        # 在事件循环关闭前显式释放连接池。否则 aiomysql 连接的 __del__
+        # 会在循环关闭之后才调用 close()，打印 "Event loop is closed" 噪音
+        # （退出码仍为 0，但日志会误导排查）。
+        await get_async_engine().dispose()
+
+    asyncio.run(_main())
+    print("==> 电商表已就绪：product / review")
+

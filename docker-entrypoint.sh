@@ -25,9 +25,9 @@ except Exception as e:
     sleep 2
 done
 
-echo "==> MySQL is ready. Initializing database tables..."
+echo "==> MySQL is ready. Initializing ecommerce tables (product / review)..."
 
-python3 tools/SentinelSpider/schema/init_database.py
+python3 -m tools.ecommerce.schema
 
 echo "==> Database initialization complete."
 echo "==> Starting FastAPI on ${HOST:-0.0.0.0}:${PORT:-5000}..."
