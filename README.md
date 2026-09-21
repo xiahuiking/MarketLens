@@ -1,6 +1,6 @@
 <div align="center">
 
-# MarketLens · 尚舆
+# MarketLens · 
 
 **电商商品评论与竞品分析的多智能体平台**
 
