@@ -2,7 +2,7 @@
 LangGraph node classes for CompetitorEngine.
 
 Each class implements __call__(state) -> dict and is registered
-directly as a LangGraph node in build_media_graph().
+directly as a LangGraph node in build_competitor_graph().
 """
 
 from .generate_structure import GenerateStructureNode

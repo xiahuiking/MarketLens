@@ -219,7 +219,7 @@ docker-compose up
 
 ### 方式 B · 本地开发
 
-仓库内已有两个 gitignore 的虚拟环境，无需重建：`project_venv/`（主应用）、`spider_venv/`（爬虫）。
+仓库内已有 gitignore 的虚拟环境 `project_venv/`，无需重建。
 
 ```bash
 # 1) 依赖
@@ -336,9 +336,9 @@ engines/        LangGraph 智能体（核心产品，约 34k 行）
 ├── ForumEngine/       主持人 Agent
 └── ReportEngine/      报告 Agent（约 24.5k 行，含 ir/ · renderers/ · visualization/）
 
-tools/          独立工具（约 38k 行，含 vendored 的爬虫与情感模型）
-├── ecommerce/  Amazon 数据下载 / 导入 + 表结构
-└── SentinelSpider/  爬虫（独立虚拟环境，见 requirements-spider.txt）
+tools/          独立脚本
+├── ecommerce/  Amazon 数据下载 / 导入 + 电商表结构（product / review）
+└── SentimentAnalysisModel/  情感模型（历史资产，当前代码未引用）
 
 frontend/       Vue 3 SPA
 ├── src/views/       Dashboard · 口碑 · 竞品 · 趋势 · Forum · Report
@@ -373,18 +373,23 @@ engines/<Engine>/
 ./project_venv/bin/pytest tests/test_aspect_sentiment.py -q   # 单文件
 ```
 
-当前**可稳定跑绿**的子集（实测 `354 passed, 4 skipped`）：
+当前测试基线（实测，根目录直接跑，无需再指定 `tests/`）：
 
 ```bash
-./project_venv/bin/pytest tests/ -q \
-  --ignore=tests/test_media_engine_e2e.py \
-  --ignore=tests/test_query_engine_e2e.py \
-  --ignore=tests/test_crawler_spider_config.py
+./project_venv/bin/pytest -q      # 245 passed, 0 failed, 0 error
 ```
 
-被排除的三个文件对应[已知问题](#已知问题与路线图)中已定位、待修复的缺陷（引擎改名未同步、模块同名冲突），不是随机失败。
+`pytest.ini` 里设了 `testpaths = tests`，默认只收集 `tests/` 下的测试；
+显式传路径（如 `pytest engines/`）时仍按传入路径收集。
 
-各引擎的端到端测试（`tests/test_*_engine_e2e.py`）需要真实 LLM API Key，不属于默认运行范围。
+三个分析引擎的端到端测试（`tests/test_{review,competitor,trend}_engine_e2e.py`）
+都用 mock 替换了 LLM、搜索引擎与数据库依赖，**不需要真实 API Key**，默认即纳入运行范围。
+它们验证 `run_research()` 的外部契约：报告非空且以 Markdown 标题开头、`save_report` 落盘内容一致、
+搜索异常向上传播、`progress_callback` 被触发（以及不传回调时不崩溃）。
+mock 按节点实际请求的 `output_model` 分派，而不是按调用序号返回字符串——契约再次漂移时会直接失败而不是静默错位。
+
+`integration` 标记（`pytest -m "not integration"`）保留在 `pytest.ini` 中，
+用于标记需要真实数据库/网络的用例；当前 `tests/` 下暂无此类用例。
 
 ---
 
@@ -440,23 +445,35 @@ LLM 直接吐 HTML 无法校验、无法多端复用、样式与内容耦合。�
 
 ## 已知问题与路线图
 
-本仓库附带一份**基于实测**的改进清单：[`IMPROVEMENTS.md`](IMPROVEMENTS.md)。它记录了每个问题的可复现命令与文件行号，而不是泛泛而谈。当前公开的主要问题：
+本仓库附带一份**基于实测**的改进清单：[`IMPROVEMENTS.md`](IMPROVEMENTS.md)。它记录了每个问题的可复现命令与文件行号，而不是泛泛而谈。
+
+**最近修复**（详见 `IMPROVEMENTS.md` 第一节）：根目录 `pytest` 的 7 个 collection error 已清零；
+两个引擎 e2e 测试的过期 mock 已重写（顺带修掉 `progress_callback=None` 时的 `TypeError` 崩溃——
+这是默认用法下的真实缺陷，不是测试问题）。
+
+**已移除爬虫模块**：`tools/SentinelSpider/`（含 vendored 的 MediaCrawler，非商用许可）及其 261 个测试
+全部删除，它属于本项目转向电商前的历史资产。同时把 `docker-entrypoint.sh` 从
+「创建爬虫的社交媒体表」改为「创建电商表」——这修掉了一个真实缺陷：
+原先 Docker 启动时**从不创建** `product` / `review` 表，而那是 ReviewEngine 唯一的取数来源。
+
+当前仍公开的主要问题：
 
 | 问题 | 实测表现 |
 |---|---|
-| 测试收集失败 | 根目录 `pytest` 有 7 个 collection error（`engines/` 未成包、包内测试文件、vendored 爬虫依赖），需 `pytest tests/` 才能运行 |
-| 引擎改名未同步 | `tests/test_{media,query}_engine_e2e.py` 仍引用旧名 `MediaEngine` / `QueryEngine`，导致 12 个 error |
-| 模块同名冲突 | 仓库存在三个顶层 `config`（`app/config.py`、`tools/SentinelSpider/config.py`、MediaCrawler 的 `config` 包），测试结果依赖 import 顺序 |
-| 打包配置缺失 | 无 `pyproject.toml`，因此存在 6 处 `sys.path` 注入 |
-| 配置热更新不完全 | 9 处 `from app.config import settings` 按值导入，`reload_settings()` 对其无效 |
+| 打包配置缺失 | 无 `pyproject.toml`，20 处 `sys.path` 注入分布在 20 个文件 |
+| 配置热更新不完全 | 15 处 `from app.config import settings` 按值导入，`reload_settings()` 对其无效 |
 | 可观测性缺失 | 无 token / 成本核算，无调用链追踪 |
 | 任务状态在内存 | `ReportTask` 注册表仅保留最近 5 条，进程重启丢失进行中的长任务 |
+| 无 CI | 没有 `.github/`，承诺的 `ruff check` + `pytest` 尚未接上 |
+| 评测未基准化 | 情感对照实验（n=150）是一次性脚本，缺固定基准集与回归门禁 |
 
 **路线图（按优先级）**
 
-- [ ] `pyproject.toml` + 包化，让根目录 `pytest` 0 error（同时移除全部 `sys.path` 注入）
-- [ ] 同步改名两个 e2e 测试并补 `pytest.mark.integration`
-- [ ] 新增 `README` 中承诺的 CI：`ruff check` + `pytest -m "not integration"`
+- [x] 让根目录 `pytest` 0 error / 0 failed（`testpaths` + 两个包内测试移入 `tests/`）
+- [x] 重写 `test_{competitor,trend}_engine_e2e.py` 的过期 mock，并修掉 `progress_callback=None` 崩溃
+- [x] 移除爬虫模块与非商用 vendored 组件，Docker 改为初始化电商表
+- [ ] `pyproject.toml` + 包化，移除全部 20 处 `sys.path` 注入
+- [ ] 新增 CI：`ruff check` + `pytest -m "not integration"`
 - [ ] LLM 调用可观测性：token / 成本 / 耗时 / 重试次数落盘 + 面板
 - [ ] 评测基准：固定 query 集上对比单智能体 vs 多智能体，量化收益
 - [ ] 任务状态持久化 + 并发上限 + 可见的重试降级日志
@@ -465,12 +482,18 @@ LLM 直接吐 HTML 无法校验、无法多端复用、样式与内容耦合。�
 
 ## 第三方组件与许可
 
-本仓库**尚未添加顶层 `LICENSE`**。请注意 `tools/` 下包含 vendored 的第三方项目，各自保留其原始许可：
+本仓库**有意不添加顶层 `LICENSE`**（作者保留全部权利）。如需公开分发，请先补一份顶层许可。
 
-- `tools/SentinelSpider/DeepSentimentCrawling/MediaCrawler/` —— 自带 `LICENSE`
-- `engines/ReportEngine/renderers/assets/fonts/` —— 自带 `LICENSE.txt`（思源宋体，SIL OFL）
+仓库内保留的第三方资源各自沿用其原始许可：
 
-在将本项目用于分发或商业用途前，请先核对上述组件的许可条款。
+| 组件 | 许可 | 注意 |
+|---|---|---|
+| `engines/ReportEngine/renderers/assets/fonts/` | SIL OFL（思源宋体） | 可商用，保留许可文件即可 |
+| `engines/ReportEngine/renderers/libs/`（html2canvas / jspdf） | 各自附带许可 | 随文件分发时保留 |
+
+> 变更记录：`tools/SentinelSpider/` 下曾 vendored 一个爬虫项目（MediaCrawler），
+> 其许可为 **NON-COMMERCIAL LEARNING LICENSE 1.1（禁止商用）**，且与本项目电商主线无关。
+> 该模块已连同其 261 个测试一并移除，仓库的许可状态因此不再有非商用约束。
 
 ---
 

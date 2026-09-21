@@ -448,7 +448,7 @@ def create_llm_repair_functions() -> List:
 
     # 3. ReviewEngine修复函数
     if settings.REVIEW_ENGINE_API_KEY and settings.REVIEW_ENGINE_BASE_URL:
-        def repair_with_insight_engine(widget_block: Dict[str, Any], errors: List[str]) -> Optional[Dict[str, Any]]:
+        def repair_with_review_engine(widget_block: Dict[str, Any], errors: List[str]) -> Optional[Dict[str, Any]]:
             """使用ReviewEngine的LLM修复图表"""
             try:
                 from ReportEngine.llms import LLMClient
@@ -477,12 +477,12 @@ def create_llm_repair_functions() -> List:
                 logger.exception(f"ReviewEngine图表修复失败: {e}")
                 return None
 
-        repair_functions.append(repair_with_insight_engine)
+        repair_functions.append(repair_with_review_engine)
         logger.debug("已添加ReviewEngine图表修复函数")
 
     # 4. CompetitorEngine修复函数
     if settings.COMPETITOR_ENGINE_API_KEY and settings.COMPETITOR_ENGINE_BASE_URL:
-        def repair_with_media_engine(widget_block: Dict[str, Any], errors: List[str]) -> Optional[Dict[str, Any]]:
+        def repair_with_competitor_engine(widget_block: Dict[str, Any], errors: List[str]) -> Optional[Dict[str, Any]]:
             """使用CompetitorEngine的LLM修复图表"""
             try:
                 from ReportEngine.llms import LLMClient
@@ -511,7 +511,7 @@ def create_llm_repair_functions() -> List:
                 logger.exception(f"CompetitorEngine图表修复失败: {e}")
                 return None
 
-        repair_functions.append(repair_with_media_engine)
+        repair_functions.append(repair_with_competitor_engine)
         logger.debug("已添加CompetitorEngine图表修复函数")
 
     if not repair_functions:

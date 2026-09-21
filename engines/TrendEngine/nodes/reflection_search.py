@@ -7,7 +7,7 @@ from datetime import datetime
 from loguru import logger
 
 from engines.common.structured_output import SearchOutput
-from ..state import QueryGraphState
+from ..state import TrendGraphState
 from ..prompts import SYSTEM_PROMPT_REFLECTION
 from ._search_utils import execute_search_and_convert
 
@@ -16,7 +16,7 @@ class ReflectionSearchNode:
     def __init__(self, ctx):
         self.ctx = ctx
 
-    def __call__(self, state: QueryGraphState) -> dict:
+    def __call__(self, state: TrendGraphState) -> dict:
         idx = state["current_paragraph_index"]
         para = state["paragraphs"][idx]
         count = state.get("current_reflection_count", 0)

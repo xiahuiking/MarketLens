@@ -35,7 +35,8 @@ output_schema_first_search = {
         "start_date": {"type": "string", "description": "开始日期 YYYY-MM-DD，仅 get_review_trend"},
         "end_date": {"type": "string", "description": "结束日期 YYYY-MM-DD，仅 get_review_trend"},
         "product_queries": {"type": "array", "items": {"type": "string"}, "description": "商品名列表，仅 compare_products"},
-        "texts": {"type": "array", "items": {"type": "string"}, "description": "文本列表，仅 analyze_sentiment"}
+        "texts": {"type": "array", "items": {"type": "string"}, "description": "文本列表，仅 analyze_sentiment"},
+        "enable_sentiment": {"type": "boolean", "description": "本次搜索是否对评论做情感分析，不填则用默认配置；纯统计/趋势类查询建议填 false 以节省算力"}
     },
     "required": ["search_query", "search_tool", "reasoning"]
 }
@@ -73,7 +74,8 @@ output_schema_reflection = {
         "start_date": {"type": "string"},
         "end_date": {"type": "string"},
         "product_queries": {"type": "array", "items": {"type": "string"}},
-        "texts": {"type": "array", "items": {"type": "string"}}
+        "texts": {"type": "array", "items": {"type": "string"}},
+        "enable_sentiment": {"type": "boolean", "description": "本次搜索是否对评论做情感分析，不填则用默认配置；纯统计/趋势类查询（如评分分布、评论趋势、商品检索）建议填 false"}
     },
     "required": ["search_query", "search_tool", "reasoning"]
 }
@@ -107,6 +109,40 @@ input_schema_report_formatting = {
 
 
 # ===== 系统提示词定义 =====
+
+# 情感档位 → 星级的官方折算口径（供所有 summary / 报告格式化提示词复用）。
+#
+# 背景：sentiment_analysis.sentiment_distribution 是"文本情感"模型的 5 级判定，
+# 与平台星级（购后满意度）不是同一口径。实测两者在正面主导样本上差异明显
+# （模型正面率平均低于星级正面率约 11 个百分点），因此折算必须整档搬运并标注来源，
+# 不允许用折算值冒充平台真实星级。
+SENTIMENT_STAR_MAPPING_RULE = """
+**情感档位与星级的折算口径（必须遵守）**
+
+search_metadata.sentiment_analysis.sentiment_distribution 是情感模型对**评论文本**给出的 5 级判定，
+按下列对照表**整档折算**为星级：
+
+| 情感档位 | 折算星级 |
+|----------|----------|
+| 非常正面 | 5 星 |
+| 正面     | 4 星 |
+| 中性     | 3 星 |
+| 负面     | 2 星 |
+| 非常负面 | 1 星 |
+
+折算规则：
+1. **真实星级优先**：若 search_results 或工具已返回真实星级数据（如 get_rating_distribution 的各星级计数、
+   或单条评论自带 rating），一律以真实星级为准，情感折算只作旁证。
+2. **无真实星级时才用折算**：数据库未提供星级分布时，用上表把 sentiment_distribution 折算为星级分布，
+   用来填充"评分分布"章节；但**必须显式标注**「本分布由评论文本情感折算得出，非平台真实星级评分」，
+   并同时保留原始情感档位口径（非常正面/正面/中性/负面/非常负面）。
+3. **整档搬运**：按条数整档搬运，禁止自行增减比例、禁止外推；引用时必须写明样本量（total_analyzed）。
+4. **两口径不一致要说清**：若折算星级分布与真实星级分布差异显著（负面率相差 10 个百分点以上），
+   必须并列给出两个口径并说明原因——情感模型判定的是文本情绪，星级反映的是购后满意度，二者不等价
+   （例如"东西不错但物流太慢"的 5 星评论，文本情感可能被判为负面）。
+5. **以文本为准**：情感模型对"以贬写褒""褒贬不一"的表达存在误判；若某条判定与评论文本明显矛盾，
+   以文本为准，并在正文中说明该差异。
+"""
 
 SYSTEM_PROMPT_REPORT_STRUCTURE = f"""
 你是一位专业的电商商品口碑分析师。给定一个商品查询（商品名/品牌/品类），你需要规划一份全面的商品口碑分析报告结构。
@@ -204,7 +240,7 @@ SYSTEM_PROMPT_FIRST_SUMMARY = f"""
 </INPUT JSON SCHEMA>
 
 输入中可能额外包含 **search_metadata** 字段（sentiment_analysis 情感统计、clustering 聚类信息）。它是辅助信号，你的分析**必须以 search_results 中的具体评论文本为第一手材料**。
-
+{SENTIMENT_STAR_MAPPING_RULE}
 **你的核心任务：基于评论数据，撰写精炼的口碑分析段落（300-500字）**
 
 **撰写要求：**
@@ -263,7 +299,7 @@ SYSTEM_PROMPT_REFLECTION_SUMMARY = f"""
 </INPUT JSON SCHEMA>
 
 输入中可能额外包含 search_metadata（情感分析、聚类统计），是辅助信号，仍需以具体文本为第一手材料。
-
+{SENTIMENT_STAR_MAPPING_RULE}
 **核心任务：基于新搜索结果，精炼地补充和修正已有段落（目标 300-500字）**
 
 **迭代策略：**
@@ -288,7 +324,7 @@ SYSTEM_PROMPT_REPORT_FORMATTING = f"""
 <INPUT JSON SCHEMA>
 {json.dumps(input_schema_report_formatting, indent=2, ensure_ascii=False)}
 </INPUT JSON SCHEMA>
-
+{SENTIMENT_STAR_MAPPING_RULE}
 **你的核心使命：创建一份深度挖掘用户口碑的商品口碑分析报告，不少于两千字**
 
 **口碑报告架构：**
@@ -305,9 +341,12 @@ SYSTEM_PROMPT_REPORT_FORMATTING = f"""
 
 ## 一、商品整体口碑概览
 ### 1.1 评分分布
-| 星级 | 占比 | 数量 |
-|------|------|------|
-| 5星 | XX%  | XX   |
+| 星级 | 占比 | 数量 | 数据口径 |
+|------|------|------|----------|
+| 5星 | XX%  | XX   | 真实星级 / 文本情感折算 |
+
+> 口径说明：若星级数据来自情感折算，必须写成「由评论文本情感折算（样本 N 条），非平台真实星级评分」，
+> 并另附一张情感档位原始分布表（非常正面/正面/中性/负面/非常负面）。
 
 ### 1.2 情感倾向分析
 [正面/负面/中性情感分布与整体判断]

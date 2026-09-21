@@ -10,17 +10,17 @@ from app.services.event_types import EventType
 from app.utils.forum_reader import get_latest_host_speech, format_host_speech_for_prompt
 from engines.common.structured_output import InitialSummaryOutput
 
-from ..state import QueryGraphState
+from ..state import TrendGraphState
 from ..prompts import SYSTEM_PROMPT_FIRST_SUMMARY
 from ..utils.text_processing import format_search_results_for_prompt
-from ..context import QueryContext
+from ..context import TrendContext
 
 
 class InitialSummaryNode:
-    def __init__(self, ctx: QueryContext):
+    def __init__(self, ctx: TrendContext):
         self.ctx = ctx
 
-    def __call__(self, state: QueryGraphState) -> dict:
+    def __call__(self, state: TrendGraphState) -> dict:
         idx = state["current_paragraph_index"]
         para = state["paragraphs"][idx]
         cs = para.get("research", {}).get("current_search", {})

@@ -12,9 +12,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ### Python 环境
 
-本地存在两个已 gitignore 的虚拟环境，无需重建：
+本地存在一个已 gitignore 的虚拟环境，无需重建：
 - `project_venv/` —— 主应用（后端 + 引擎 + ReportEngine 依赖，如 `weasyprint`/`torch`）。对应 `pip install -r requirements.txt`。
-- `spider_venv/` —— 仅爬虫依赖（MediaCrawler/Playwright）。对应 `pip install -r requirements-spider.txt`。
 
 ### 运行后端
 
@@ -43,8 +42,8 @@ npm run build                                  # vue-tsc + vite build → fronte
 ```
 
 - `@pytest.mark.asyncio` 标记异步测试（pytest-asyncio 已在 `requirements.txt` 中）。
-- `@pytest.mark.integration` 在 `pytest.ini` 中注册，用于标记会请求真实外部服务的测试。
-- 各引擎的端到端测试（`tests/test_*_engine_e2e.py`）需要真实的 LLM API Key，不属于默认运行范围。
+- `@pytest.mark.integration` 在 `pytest.ini` 中注册，用于标记会请求真实外部服务的测试；当前 `tests/` 下暂无此类用例。
+- 各引擎的端到端测试（`tests/test_*_engine_e2e.py`）全部用 mock 替换 LLM / 搜索 / 数据库依赖，**不需要真实 API Key**，默认即纳入运行范围。
 
 ### Docker（全栈）
 
@@ -52,11 +51,13 @@ npm run build                                  # vue-tsc + vite build → fronte
 docker-compose up          # db（MySQL）+ backend + frontend（nginx）
 ```
 
-`docker-entrypoint.sh` 会等待 MySQL 就绪，运行 `tools/SentinelSpider/schema/init_database.py` 建表，然后启动 uvicorn。nginx 将 `/api/` 代理到后端，并对 SSE 关闭缓冲。
+`docker-entrypoint.sh` 会等待 MySQL 就绪，运行 `python3 -m tools.ecommerce.schema` 创建电商表（`product` / `review`，幂等），然后启动 uvicorn。nginx 将 `/api/` 代理到后端，并对 SSE 关闭缓冲。
 
 ### 导入数据（ReviewEngine 的前置条件）
 
 ```bash
+# 0. 建表（幂等，可重复执行；Docker 部署时由 docker-entrypoint.sh 自动完成）
+./project_venv/bin/python -m tools.ecommerce.schema
 # 1. 下载 Amazon Reviews 2023（支持断点续传）
 ./project_venv/bin/python tools/ecommerce/download_amazon.py \
     --url "https://mcauleylab.ucsd.edu/public_datasets/data/amazon_2023/raw/meta_categories/meta_Electronics.jsonl.gz" \
@@ -74,7 +75,7 @@ docker-compose up          # db（MySQL）+ backend + frontend（nginx）
 ```
 app/        FastAPI 后端 —— config、routers、services、schemas、utils
 engines/    LangGraph AI Agent（核心产品）
-tools/      独立脚本 —— ecommerce 导入/下载、SentinelSpider 爬虫、SentimentAnalysisModel
+tools/      独立脚本 —— ecommerce 导入/下载 + schema、SentimentAnalysisModel（情感模型，未被代码引用）
 frontend/   Vue 3 SPA
 tests/      pytest 测试套件
 ```
@@ -137,7 +138,7 @@ download_amazon.py → import_amazon.py → MySQL (product/review)
 
 - **应动态导入 `config.settings`，而非按值导入。** 因为 `reload_settings()` 会重新赋值 `config.settings`，需要感知运行时配置变更的代码应使用 `from app import config; config.settings`（参见 `engines/ReviewEngine/utils/db.py`），而不是 `from app.config import settings`（后者会固定指向启动时的旧对象）。
 
-- **项目曾多次改名。** 旧名称仍出现在测试、注释和部分 import 中：`InsightEngine`→`ReviewEngine`、`MediaEngine`→`CompetitorEngine`、`QueryEngine`→`TrendEngine`、`MediaCrawlerDB`→`ProductReviewDB`、`SentinelAI`/`尚舆`→`MarketLens`。另外 `common.llm_client`→`engines.common.llm_client`（`aa99702` 修复了该脆弱 import）。遇到这些名称时，它们指向的是同一组件。
+- **项目曾多次改名。** 历史映射：`InsightEngine`→`ReviewEngine`、`MediaEngine`→`CompetitorEngine`、`QueryEngine`→`TrendEngine`、`MediaCrawlerDB`→`ProductReviewDB`、`SentinelAI`/`尚舆`→`MarketLens`。**三个分析引擎的内部标识均已同步**：`InsightContext`/`InsightGraphState`/`build_insight_graph`→`ReviewContext`/`ReviewGraphState`/`build_review_graph`；`MediaContext`/`MediaGraphState`/`build_media_graph`→`CompetitorContext`/`CompetitorGraphState`/`build_competitor_graph`；`QueryContext`/`QueryGraphState`/`build_query_graph`→`TrendContext`/`TrendGraphState`/`build_trend_graph`。对应测试为 `tests/test_{review,competitor,trend}_engine_e2e.py`。仍残留的旧名只有 `MediaCrawlerDB`（DB 层，与引擎命名无关，已仅存于历史提交）；注意 `洞察` 作为普通中文词仍大量出现在提示词与报告模板中（如「深度洞察」），与引擎命名无关，不要误改。另外 `common.llm_client`→`engines.common.llm_client`（`aa99702` 修复了该脆弱 import）。
 
 - **实际默认数据库是 MySQL**，尽管 `app/config.py` 中 `DB_DIALECT` 的 `Field(default="postgresql")`。docker-compose 文件、`tools/ecommerce/schema.py` 以及导入脚本均假定 MySQL。请显式设置 `DB_DIALECT=mysql`，或依赖 `.env`/docker-compose 的配置。
 

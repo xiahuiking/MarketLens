@@ -1,7 +1,7 @@
 """
 CompetitorEngine LangGraph 图定义。
 
-build_media_graph(ctx) 构建 StateGraph，
+build_competitor_graph(ctx) 构建 StateGraph，
 将节点类（__call__(state) -> dict）注册到图中。
 """
 
@@ -9,8 +9,8 @@ from typing import Any
 
 from langgraph.graph import END, START, StateGraph
 
-from .context import MediaContext
-from .state import MediaGraphState
+from .context import CompetitorContext
+from .state import CompetitorGraphState
 from .nodes import (
     FormatReportNode,
     GenerateStructureNode,
@@ -22,26 +22,26 @@ from .nodes import (
 )
 
 
-def _should_continue_reflection(state: MediaGraphState) -> str:
+def _should_continue_reflection(state: CompetitorGraphState) -> str:
     count = state.get("current_reflection_count", 0)
     max_ref = state.get("max_reflections", 2)
     return "reflect_again" if count < max_ref else "next_paragraph"
 
 
-def _has_more_paragraphs(state: MediaGraphState) -> str:
+def _has_more_paragraphs(state: CompetitorGraphState) -> str:
     idx = state.get("current_paragraph_index", 0)
     paragraphs = state.get("paragraphs", [])
     return "process_next" if idx < len(paragraphs) else "all_done"
 
 
-def build_media_graph(ctx: MediaContext) -> Any:
+def build_competitor_graph(ctx: CompetitorContext) -> Any:
     """
     Build CompetitorEngine's LangGraph StateGraph.
 
     Args:
-        ctx: MediaContext instance providing all dependencies.
+        ctx: CompetitorContext instance providing all dependencies.
     """
-    graph = StateGraph(MediaGraphState)
+    graph = StateGraph(CompetitorGraphState)
 
     graph.add_node("generate_structure", GenerateStructureNode(ctx))
     graph.add_node("initial_search", InitialSearchNode(ctx))

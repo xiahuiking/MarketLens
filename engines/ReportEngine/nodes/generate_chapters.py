@@ -556,7 +556,7 @@ class GenerateChaptersNode(BaseNode):
         run_id: str,
     ) -> Optional[Dict[str, Any]]:
         """
-        依次调用Report/Forum/Insight/Media四套API尝试修复无法解析的JSON。
+        依次调用Report/Forum/Review/Competitor四套API尝试修复无法解析的JSON。
 
         Returns:
             dict | None: 成功修复时返回章节JSON，否则为None。

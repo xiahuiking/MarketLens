@@ -3,7 +3,7 @@
 import os
 from datetime import datetime
 from loguru import logger
-from ..state import QueryGraphState
+from ..state import TrendGraphState
 from ..models.state import Paragraph, State
 
 
@@ -11,7 +11,7 @@ class SaveReportNode:
     def __init__(self, ctx):
         self.ctx = ctx
 
-    def __call__(self, state: QueryGraphState) -> dict:
+    def __call__(self, state: TrendGraphState) -> dict:
         self._pc({"status": "saving", "message": "正在保存报告...", "progress_pct": 95})
         if not state.get("save_report", True):
             return {}
@@ -32,5 +32,5 @@ class SaveReportNode:
             self.ctx.progress_callback(data)
 
 
-def _rebuild(final_report: str, query: str, gs: QueryGraphState) -> State:
+def _rebuild(final_report: str, query: str, gs: TrendGraphState) -> State:
     return State(query=query, report_title=gs.get("report_title", ""), paragraphs=[Paragraph.from_dict(d) for d in gs.get("paragraphs", [])], final_report=final_report, is_completed=True)

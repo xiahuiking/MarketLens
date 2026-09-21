@@ -7,7 +7,7 @@ from datetime import datetime
 
 from loguru import logger
 
-from ..state import MediaGraphState
+from ..state import CompetitorGraphState
 from ..models.state import Paragraph, State
 
 
@@ -17,7 +17,7 @@ class SaveReportNode:
     def __init__(self, ctx):
         self.ctx = ctx
 
-    def __call__(self, state: MediaGraphState) -> dict:
+    def __call__(self, state: CompetitorGraphState) -> dict:
         self._pc({"status": "saving", "message": "正在保存报告...", "progress_pct": 95})
         if not state.get("save_report", True):
             return {}
@@ -46,7 +46,7 @@ class SaveReportNode:
             self.ctx.progress_callback(data)
 
 
-def _rebuild_state_from_graph(graph_state: MediaGraphState) -> State:
+def _rebuild_state_from_graph(graph_state: CompetitorGraphState) -> State:
     paragraphs = [Paragraph.from_dict(d) for d in graph_state.get("paragraphs", [])]
     return State(
         query=graph_state.get("query", ""),

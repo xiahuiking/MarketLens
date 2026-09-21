@@ -1,5 +1,5 @@
 """
-InsightContext — clean dependency container for ReviewEngine graph.
+ReviewContext — clean dependency container for ReviewEngine graph.
 
 Holds config, LLM client, search tools, and utility methods.
 LangGraph node classes receive ctx and pull what they need.
@@ -23,7 +23,7 @@ from app.config import Settings
 
 
 @dataclass
-class InsightContext:
+class ReviewContext:
     """Holds all dependencies needed by ReviewEngine's LangGraph nodes."""
 
     llm_client: LLMClient
@@ -176,6 +176,21 @@ class InsightContext:
 
     def analyze_sentiment_only(self, texts: Union[str, List[str]]) -> Dict[str, Any]:
         try:
+            # 全局开关必须对显式调用同样有效：否则 LLM 只要选用 analyze_sentiment 工具，
+            # 就能绕过 SENTIMENT_ANALYSIS_ENABLED（运营方以为关掉了，实际还在跑模型）。
+            if not self.config.SENTIMENT_ANALYSIS_ENABLED:
+                reason = "情感分析已在配置中关闭（SENTIMENT_ANALYSIS_ENABLED=false）"
+                logger.info(f"    {reason}，跳过情感分析工具调用")
+                items = [texts] if isinstance(texts, str) else list(texts)
+                return {
+                    "success": False,
+                    "total_analyzed": 0,
+                    "results": [],
+                    "available": False,
+                    "reason": reason,
+                    "original_count": len(items),
+                }
+
             # 不复用 is_disabled 做短路：若先前因依赖探测失败被禁用，
             # initialize() 内部会重新探测并自动恢复。
             if not self.sentiment_analyzer.is_initialized:

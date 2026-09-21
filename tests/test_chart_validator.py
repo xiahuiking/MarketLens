@@ -2,7 +2,7 @@
 图表验证器和修复器的测试用例。
 
 运行测试：
-    python -m pytest ReportEngine/utils/test_chart_validator.py -v
+    ./project_venv/bin/pytest tests/test_chart_validator.py -v
 """
 
 import pytest

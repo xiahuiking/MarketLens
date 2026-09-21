@@ -10,8 +10,8 @@ from typing import Any, Callable, Dict, Optional
 
 from loguru import logger
 
-from .context import InsightContext
-from .graph import build_insight_graph
+from .context import ReviewContext
+from .graph import build_review_graph
 from .llms import LLMClient
 from app.config import Settings, settings
 
@@ -28,7 +28,7 @@ def run_research(
     """Execute deep research, return dict with final_report and paragraphs."""
     logger.info(f"\n{'=' * 60}\n开始深度研究: {query}\n{'=' * 60}")
 
-    ctx = InsightContext(
+    ctx = ReviewContext(
         llm_client=llm_client,
         config=config,
         progress_callback=progress_callback,
@@ -65,7 +65,7 @@ def run_research(
     os.makedirs(config.OUTPUT_DIR, exist_ok=True)
 
     try:
-        graph = build_insight_graph(ctx)
+        graph = build_review_graph(ctx)
         initial_state = {
             "query": query,
             "save_report": save_report,

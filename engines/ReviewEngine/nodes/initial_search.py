@@ -9,32 +9,33 @@ from datetime import datetime
 from loguru import logger
 
 from engines.common.structured_output import SearchOutput
-from ..state import InsightGraphState
+from ..state import ReviewGraphState
 from ..prompts import SYSTEM_PROMPT_FIRST_SEARCH
-from ._search_utils import execute_search_and_convert
-from ..context import InsightContext
+from ._search_utils import execute_search_and_convert, merge_search_metadata
+from ..context import ReviewContext
 
 
 class InitialSearchNode:
     """Generate initial search query for the current paragraph and execute search."""
 
-    def __init__(self, ctx: InsightContext):
+    def __init__(self, ctx: ReviewContext):
         self.ctx = ctx
 
-    def __call__(self, state: InsightGraphState) -> dict:
+    def __call__(self, state: ReviewGraphState) -> dict:
         idx = state["current_paragraph_index"]
         paragraphs = state["paragraphs"]
         para = paragraphs[idx]
         total = len(paragraphs)
 
         pct = int(20 + (idx + 0.3) / total * 60)
-        self.ctx.progress_callback({
-            "status": "processing",
-            "message": f"处理段落 {idx+1}/{total}: {para['title']}",
-            "progress_pct": pct,
-            "paragraph_current": idx + 1,
-            "paragraph_total": total,
-        })
+        if self.ctx.progress_callback:
+            self.ctx.progress_callback({
+                "status": "processing",
+                "message": f"处理段落 {idx+1}/{total}: {para['title']}",
+                "progress_pct": pct,
+                "paragraph_current": idx + 1,
+                "paragraph_total": total,
+            })
 
         search_input = {"title": para["title"], "content": para["content"]}
         logger.info("  - 生成搜索查询...")
@@ -72,5 +73,8 @@ class InitialSearchNode:
             "query": search_query, "tool": search_tool, "results": search_results,
             "metadata": search_metadata,
         }
+        # 段落级累积元信息：后续反思轮若搜到空结果/无后处理工具，不会再把这里已
+        # 产出的情感与聚类结果清掉（summary 节点优先读这个字段）
+        research["metadata"] = merge_search_metadata(research.get("metadata"), search_metadata)
 
         return {"paragraphs": updated}

@@ -2,7 +2,7 @@
 
 import json
 from loguru import logger
-from ..state import QueryGraphState
+from ..state import TrendGraphState
 from ..prompts import SYSTEM_PROMPT_REPORT_FORMATTING
 from ..utils.text_processing import remove_reasoning_from_output, clean_markdown_tags
 
@@ -11,7 +11,7 @@ class FormatReportNode:
     def __init__(self, ctx):
         self.ctx = ctx
 
-    def __call__(self, state: QueryGraphState) -> dict:
+    def __call__(self, state: TrendGraphState) -> dict:
         self._pc({"status": "finalizing", "message": "正在生成最终报告...", "progress_pct": 90})
         logger.info("\n[步骤 3] 生成最终报告...")
         report_data = [{"title": p["title"], "paragraph_latest_state": p.get("research", {}).get("latest_summary", "")} for p in state["paragraphs"]]

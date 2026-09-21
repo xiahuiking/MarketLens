@@ -9,7 +9,7 @@ from typing import Optional
 from typing_extensions import TypedDict
 
 
-class InsightGraphState(TypedDict, total=False):
+class ReviewGraphState(TypedDict, total=False):
     """ReviewEngine 的 LangGraph 状态"""
 
     # ── 输入 ──
