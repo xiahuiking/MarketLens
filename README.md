@@ -499,6 +499,6 @@ LLM 直接吐 HTML 无法校验、无法多端复用、样式与内容耦合。�
 
 <div align="center">
 
-**MarketLens / 尚舆** · 让评论数据自己说话
+**MarketLens** · 让评论数据自己说话
 
 </div>
