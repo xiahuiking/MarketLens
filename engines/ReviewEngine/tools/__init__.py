@@ -9,12 +9,6 @@ from .search import (
     DBResponse,
     print_response_summary
 )
-from .keyword_optimizer import (
-    KeywordOptimizer,
-    KeywordOptimizationResponse,
-    keyword_optimizer,
-    get_keyword_optimizer,
-)
 from .sentiment_analyzer import (
     WeiboMultilingualSentimentAnalyzer,
     SentimentResult,
@@ -36,10 +30,6 @@ __all__ = [
     "QueryResult",
     "DBResponse",
     "print_response_summary",
-    "KeywordOptimizer",
-    "KeywordOptimizationResponse",
-    "keyword_optimizer",
-    "get_keyword_optimizer",
     "WeiboMultilingualSentimentAnalyzer",
     "SentimentResult",
     "BatchSentimentResult",
