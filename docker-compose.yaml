@@ -5,7 +5,7 @@ services:
     restart: unless-stopped
     environment:
       MYSQL_ROOT_PASSWORD: ${DB_PASSWORD:-Atguigu.123}
-      MYSQL_DATABASE: ${DB_NAME:-media_crawler}
+      MYSQL_DATABASE: ${DB_NAME:-marketlens}
     command:
       - --character-set-server=utf8mb4
       - --collation-server=utf8mb4_unicode_ci
@@ -47,7 +47,7 @@ services:
       - DB_PORT=3306
       - DB_USER=${DB_USER:-root}
       - DB_PASSWORD=${DB_PASSWORD:-Atguigu.123}
-      - DB_NAME=${DB_NAME:-media_crawler}
+      - DB_NAME=${DB_NAME:-marketlens}
       - DB_CHARSET=${DB_CHARSET:-utf8mb4}
       # 口碑 Agent / ReviewEngine (Kimi K2)
       - REVIEW_ENGINE_API_KEY=${REVIEW_ENGINE_API_KEY:-}
@@ -65,10 +65,6 @@ services:
       - REPORT_ENGINE_API_KEY=${REPORT_ENGINE_API_KEY:-}
       - REPORT_ENGINE_BASE_URL=${REPORT_ENGINE_BASE_URL:-https://aihubmix.com/v1}
       - REPORT_ENGINE_MODEL_NAME=${REPORT_ENGINE_MODEL_NAME:-gemini-2.5-pro}
-      # SentinelSpider Agent
-      - SENTINEL_SPIDER_API_KEY=${SENTINEL_SPIDER_API_KEY:-}
-      - SENTINEL_SPIDER_BASE_URL=${SENTINEL_SPIDER_BASE_URL:-}
-      - SENTINEL_SPIDER_MODEL_NAME=${SENTINEL_SPIDER_MODEL_NAME:-}
       # Forum Host (Qwen3)
       - FORUM_HOST_API_KEY=${FORUM_HOST_API_KEY:-}
       - FORUM_HOST_BASE_URL=${FORUM_HOST_BASE_URL:-}

@@ -60,11 +60,6 @@ class Settings(BaseSettings):
     REPORT_ENGINE_BASE_URL: Optional[str] = Field("https://aihubmix.com/v1", description="Report Agent LLM BaseUrl，可根据中转服务调整")
     REPORT_ENGINE_MODEL_NAME: str = Field("gemini-2.5-pro", description="Report Agent LLM 模型名称，如 gemini-2.5-pro")
 
-    # SentinelSpider Agent（推荐Deepseek）
-    SENTINEL_SPIDER_API_KEY: Optional[str] = Field(None, description="SentinelSpider Agent（推荐 deepseek）API 密钥")
-    SENTINEL_SPIDER_BASE_URL: Optional[str] = Field(None, description="SentinelSpider Agent BaseUrl，可按所选服务配置")
-    SENTINEL_SPIDER_MODEL_NAME: Optional[str] = Field(None, description="SentinelSpider Agent 模型名称，例如 deepseek-reasoner")
-    
     # Forum Host（Qwen3最新模型，这里我使用了硅基流动这个平台，申请地址：https://cloud.siliconflow.cn/）
     FORUM_HOST_API_KEY: Optional[str] = Field(None, description="Forum Host（推荐 qwen-plus）API 密钥")
     FORUM_HOST_BASE_URL: Optional[str] = Field(None, description="Forum Host LLM BaseUrl，可按所选服务配置")
@@ -157,7 +152,6 @@ def reload_settings() -> Settings:
         'FORUM_HOST_API_KEY', 'FORUM_HOST_BASE_URL', 'FORUM_HOST_MODEL_NAME',
         'KEYWORD_OPTIMIZER_API_KEY', 'KEYWORD_OPTIMIZER_BASE_URL', 'KEYWORD_OPTIMIZER_MODEL_NAME',
         'TAVILY_API_KEY', 'SEARCH_TOOL_TYPE', 'BOCHA_WEB_SEARCH_API_KEY', 'ANSPIRE_API_KEY',
-        'SENTINEL_SPIDER_API_KEY', 'SENTINEL_SPIDER_BASE_URL', 'SENTINEL_SPIDER_MODEL_NAME',
     ]
     for k in _keys_to_clear:
         os.environ.pop(k, None)
