@@ -152,10 +152,15 @@ class InsightContext:
 
     def _perform_sentiment_analysis(self, results: list) -> Optional[Dict[str, Any]]:
         try:
-            if not self.sentiment_analyzer.is_initialized and not self.sentiment_analyzer.is_disabled:
+            # 不复用 is_disabled 做短路：若先前因依赖探测失败被禁用，
+            # initialize() 内部会重新探测并自动恢复。
+            if not self.sentiment_analyzer.is_initialized:
                 logger.info("    初始化情感分析模型...")
                 if not self.sentiment_analyzer.initialize():
-                    logger.info("     情感分析模型初始化失败")
+                    logger.warning(
+                        "     情感分析模型初始化失败: "
+                        f"{self.sentiment_analyzer.disable_reason or '未知原因'}"
+                    )
             results_dict = [{
                 "content": r.title_or_content, "platform": r.platform,
                 "author": r.author_nickname, "url": r.url,
@@ -171,10 +176,15 @@ class InsightContext:
 
     def analyze_sentiment_only(self, texts: Union[str, List[str]]) -> Dict[str, Any]:
         try:
-            if not self.sentiment_analyzer.is_initialized and not self.sentiment_analyzer.is_disabled:
+            # 不复用 is_disabled 做短路：若先前因依赖探测失败被禁用，
+            # initialize() 内部会重新探测并自动恢复。
+            if not self.sentiment_analyzer.is_initialized:
                 logger.info("    初始化情感分析模型...")
                 if not self.sentiment_analyzer.initialize():
-                    logger.info("     情感分析模型初始化失败")
+                    logger.warning(
+                        "     情感分析模型初始化失败: "
+                        f"{self.sentiment_analyzer.disable_reason or '未知原因'}"
+                    )
             if isinstance(texts, str):
                 result = self.sentiment_analyzer.analyze_single_text(texts)
                 return {"success": result.success and result.analysis_performed,

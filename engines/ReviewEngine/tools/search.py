@@ -13,13 +13,105 @@ MarketLens 电商数据层：封装本地 MySQL 中的 Amazon 商品/评论数�
 """
 
 import asyncio
+import re
 from datetime import datetime, timedelta, date
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Tuple
 from dataclasses import dataclass, field
 
 from loguru import logger
 
 from ..utils.db import fetch_all
+from .query_normalizer import build_match_terms, like_escape
+
+
+# --- 查询词处理 ---------------------------------------------------------
+#
+# 本地库（data/amazon 导入的 Amazon Reviews）里 title/brand/store 全是英文，
+# 而用户与 LLM 给出的查询串经常是中文或中英混合，例如：
+#     "Sony WF-1000XM5 无线降噪耳机 口碑与竞品分析"
+#     "headphones 耳机"
+#     "索尼 蓝牙降噪耳机 无线 入耳式"
+# 整串 LIKE 做子串匹配必然 0 命中。语言归一化（中文 -> 英文关键词）统一由
+# query_normalizer 负责，这里只关心如何用候选词构造 SQL 并排序。
+
+
+def _product_filter_sql(terms: List[str]) -> Tuple[str, str, List[Any]]:
+    """根据候选词生成商品过滤 SQL。
+
+    Returns:
+        (score_sql, where_sql, params)
+        score_sql 用于按命中词数排序；params 同时覆盖 score 与 where 两处占位符
+        （score 出现在 SELECT 中，故其参数必须排在前面）。
+    """
+    score_parts: List[str] = []
+    where_parts: List[str] = []
+    score_params: List[Any] = []
+    where_params: List[Any] = []
+
+    for term in terms:
+        like = f"%{like_escape(term)}%"
+        score_parts.append(
+            "((title LIKE %s) + (brand LIKE %s) + (store LIKE %s) + (parent_asin = %s))"
+        )
+        score_params.extend([like, like, like, term])
+        where_parts.append(
+            "(title LIKE %s OR brand LIKE %s OR store LIKE %s OR parent_asin = %s)"
+        )
+        where_params.extend([like, like, like, term])
+
+    score_sql = " + ".join(score_parts) if score_parts else "0"
+    where_sql = " OR ".join(where_parts) if where_parts else "1 = 0"
+    return score_sql, where_sql, score_params + where_params
+
+
+def _term_score(row: Dict[str, Any], terms: List[str]) -> int:
+    """按匹配质量给一行商品打分。
+
+    纯子串匹配会把 "Sony" 命中 "Sonya"（Eco by Sonya Driver 磨砂膏），
+    于是"不返回空"变成了"返回垃圾"。这里区分匹配质量：
+        ASIN 精确 > 品牌精确 > 店铺精确 > 标题整词 > 子串
+    """
+    title = (row.get("title") or "").lower()
+    brand = (row.get("brand") or "").lower()
+    store = (row.get("store") or "").lower()
+    asin = row.get("parent_asin") or ""
+
+    score = 0
+    for term in terms:
+        lowered = term.lower()
+        if term == asin:
+            score += 8
+            continue
+        if brand and brand == lowered:
+            score += 6
+            continue
+        if store and store == lowered:
+            score += 4
+            continue
+        # 词边界匹配（(?<![a-z0-9])…(?![a-z0-9])），避免 sony 命中 sonya
+        if title and re.search(rf"(?<![a-z0-9]){re.escape(lowered)}(?![a-z0-9])", title):
+            score += 3
+            continue
+        if lowered in title:
+            score += 1
+        elif lowered in brand or lowered in store:
+            score += 1
+    return score
+
+
+def _rank_rows(rows: List[Dict[str, Any]], terms: List[str], limit: int) -> List[Dict[str, Any]]:
+    """按匹配质量重排候选行，丢掉零分（纯子串巧合）的行。"""
+    if not rows:
+        return []
+    scored = [(_term_score(r, terms), r) for r in rows]
+    scored = [(s, r) for s, r in scored if s > 0]
+    scored.sort(key=lambda pair: (pair[0], int(pair[1].get("rating_number") or 0)), reverse=True)
+    return [r for _, r in scored[:limit]]
+
+
+def _candidate_pool_size(limit: int) -> int:
+    """SQL 侧候选池大小：先多取一些，再在 Python 侧按匹配质量精排。"""
+    return min(max(limit * 20, 100), 500)
 
 
 # --- 数据结构定义 ---
@@ -95,18 +187,16 @@ class ProductReviewDB:
     # -- 商品检索 ---------------------------------------------------------
 
     def search_products(self, query: str, limit: int = 50) -> DBResponse:
-        """【工具】按标题/品牌/ASIN 检索商品。"""
+        """【工具】按标题/品牌/ASIN 检索商品。
+
+        查询串会被拆成多个候选词做 OR 匹配，并按命中词数排序，
+        以兼容中文/中英混合查询（见文件顶部说明）。
+        """
         params_for_log = {'query': query, 'limit': limit}
         logger.info(f"--- TOOL: 检索商品 (params: {params_for_log}) ---")
 
-        sql = (
-            "SELECT parent_asin, title, brand, store, price, main_category, average_rating, rating_number "
-            "FROM product "
-            "WHERE title LIKE %s OR parent_asin = %s OR brand LIKE %s OR store LIKE %s "
-            "ORDER BY rating_number DESC LIMIT %s"
-        )
-        like = f"%{query}%"
-        rows = self._execute_query(sql, (like, query, like, like, limit))
+        terms = build_match_terms(query)
+        rows = self._fetch_product_rows(terms, limit)
 
         results = [
             QueryResult(
@@ -125,16 +215,45 @@ class ProductReviewDB:
         ]
         return DBResponse("search_products", params_for_log, results=results, results_count=len(results))
 
-    def _resolve_parent_asins(self, product_query: str, max_products: int = 5) -> List[str]:
-        """根据商品查询串定位 parent_asin 列表。"""
-        like = f"%{product_query}%"
+    _PRODUCT_COLUMNS = (
+        "parent_asin, title, brand, store, price, main_category, average_rating, rating_number"
+    )
+
+    def _fetch_product_rows(self, terms: List[str], limit: int) -> List[Dict[str, Any]]:
+        """按候选词取一批商品，再按匹配质量精排（见 _term_score）。
+
+        SQL 侧先多取一些候选（_candidate_pool_size），Python 侧再按
+        "品牌精确/标题整词 > 子串"重新排序，避免子串巧合挤掉真正相关的商品。
+        """
+        score_sql, where_sql, params = _product_filter_sql(terms)
+        # score 表达式位于 SELECT，其占位符必须排在 where 之前
+        # （与 _product_filter_sql 的返回顺序一致）。
         sql = (
-            "SELECT parent_asin FROM product "
-            "WHERE title LIKE %s OR parent_asin = %s OR brand LIKE %s OR store LIKE %s "
-            "ORDER BY rating_number DESC LIMIT %s"
+            f"SELECT {self._PRODUCT_COLUMNS}, ({score_sql}) AS match_score "
+            f"FROM product WHERE {where_sql} "
+            "ORDER BY match_score DESC, rating_number DESC LIMIT %s"
         )
-        rows = self._execute_query(sql, (like, product_query, like, like, max_products))
+        rows = self._execute_query(sql, (*params, _candidate_pool_size(limit)))
+        return _rank_rows(rows, terms, limit)
+
+    def _resolve_parent_asins(self, product_query: str, max_products: int = 5) -> List[str]:
+        """根据商品查询串定位 parent_asin 列表。
+
+        与 search_products 使用同一套多词匹配 + 相关性排序逻辑，
+        因此中文/中英混合查询同样可用。
+        """
+        terms = build_match_terms(product_query)
+        rows = self._fetch_product_rows(terms, max_products)
         return [r["parent_asin"] for r in rows]
+
+    def count_products(self) -> int:
+        """返回 product 表总行数。
+
+        用于区分"库本身是空的"（需要导入数据）与"查询词没命中"（换个词即可），
+        避免把后者误报成前者。
+        """
+        rows = self._execute_query("SELECT COUNT(*) AS cnt FROM product")
+        return int(rows[0]["cnt"]) if rows else 0
 
     # -- 评论查询 ---------------------------------------------------------
 

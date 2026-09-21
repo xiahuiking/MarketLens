@@ -34,13 +34,27 @@ def run_research(
         progress_callback=progress_callback,
     )
 
-    # 快速检查本地电商数据库是否有数据
+    # 快速检查本地电商数据库是否有数据。
+    # 注意区分两件事：
+    #   - 库本身是空的 -> 必须导入数据，属于致命错误；
+    #   - 库有数据但本次查询词没命中 -> 只是关键词问题，不应中断引擎，
+    #     后续段落会自动改写查询词重试（中文查询现已由 query_normalizer 归一化）。
     try:
         probe = ctx.execute_search("search_products", query, limit=1)
         if not probe.results:
-            raise RuntimeError(
-                "本地电商数据库暂无数据，请先导入商品与评论数据。\n"
-                "提示: 运行 tools/ecommerce/import_amazon.py 导入 Amazon Reviews 数据。"
+            total = 0
+            try:
+                total = ctx.search_agency.count_products()
+            except Exception as count_exc:
+                logger.warning(f"数据库行数检查失败: {count_exc}")
+            if total <= 0:
+                raise RuntimeError(
+                    "本地电商数据库暂无数据，请先导入商品与评论数据。\n"
+                    "提示: 运行 tools/ecommerce/import_amazon.py 导入 Amazon Reviews 数据。"
+                )
+            logger.warning(
+                f"查询 {query!r} 未命中任何商品（库中共 {total} 个商品），"
+                "将由后续段落改写查询词后继续检索。"
             )
     except RuntimeError:
         raise

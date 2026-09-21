@@ -9,23 +9,65 @@ from typing import List, Dict, Any, Optional, Union
 from dataclasses import dataclass
 import re
 
-try:
-    import torch
+from loguru import logger
 
+# 依赖可用性标记。初值为 False，由下面的 _load_*() 探测后填充。
+# 关键点：不能把探测结果"一次定生死"。
+# 三个引擎是在 threading.Thread 中并发懒加载各自的包的，而 transformers 首次
+# 导入很慢；当本模块导入 transformers 的同时另一线程也在导入它，本线程会读到
+# "部分初始化"的 transformers 模块并抛出：
+#     ImportError: cannot import name 'AutoTokenizer' from 'transformers'
+# 这是瞬时竞态（CPython 的 from X import Y 不会为属性解析等待 X 的初始化完成），
+# 因此必须保留可重试的探测入口，否则一次偶发失败会让情感分析在整个进程生命周期
+# 内永久失效。
+torch = None  # type: ignore
+TORCH_AVAILABLE = False
+AutoTokenizer = None  # type: ignore
+AutoModelForSequenceClassification = None  # type: ignore
+TRANSFORMERS_AVAILABLE = False
+
+
+def _load_torch() -> bool:
+    """探测（或重新探测）torch 是否可用。"""
+    global torch, TORCH_AVAILABLE
+    if TORCH_AVAILABLE:
+        return True
+    try:
+        import torch as _torch
+
+        _torch.classes.__path__ = []
+    except ImportError:
+        return False
+    torch = _torch
     TORCH_AVAILABLE = True
-    torch.classes.__path__ = []
-except ImportError:
-    torch = None  # type: ignore
-    TORCH_AVAILABLE = False
+    return True
 
-try:
-    from transformers import AutoTokenizer, AutoModelForSequenceClassification
 
+def _load_transformers() -> bool:
+    """探测（或重新探测）transformers 是否可用。
+
+    失败时返回 False，但**不锁定**结果：调用方可在稍后重试，
+    以越过并发导入造成的瞬时失败（见文件顶部说明）。
+    """
+    global AutoTokenizer, AutoModelForSequenceClassification, TRANSFORMERS_AVAILABLE
+    if TRANSFORMERS_AVAILABLE:
+        return True
+    try:
+        from transformers import (
+            AutoTokenizer as _AutoTokenizer,
+            AutoModelForSequenceClassification as _AutoModelForSequenceClassification,
+        )
+    except ImportError:
+        return False
+    AutoTokenizer = _AutoTokenizer
+    AutoModelForSequenceClassification = _AutoModelForSequenceClassification
     TRANSFORMERS_AVAILABLE = True
-except ImportError:
-    AutoTokenizer = None  # type: ignore
-    AutoModelForSequenceClassification = None  # type: ignore
-    TRANSFORMERS_AVAILABLE = False
+    return True
+
+
+# 模块导入时先探测一次；即使失败也只是暂时禁用，稍后会自动重试。
+_load_torch()
+_load_transformers()
 
 
 # 情感分析全局开关从配置读取
@@ -84,6 +126,8 @@ class WeiboMultilingualSentimentAnalyzer:
         self.is_initialized = False
         self.is_disabled = False
         self.disable_reason: Optional[str] = None
+        # 是否因依赖探测失败被禁用（区别于配置主动关闭）；这类禁用可重试恢复。
+        self.disabled_by_missing_deps = False
 
         # 情感标签映射（5级分类）
         self.sentiment_map = {
@@ -98,22 +142,34 @@ class WeiboMultilingualSentimentAnalyzer:
             self.disable("情感分析功能已在配置中关闭。")
         elif not (TORCH_AVAILABLE and TRANSFORMERS_AVAILABLE):
             missing = _describe_missing_dependencies() or "未知依赖"
-            self.disable(f"缺少依赖: {missing}，情感分析已禁用。")
+            self.disable(f"缺少依赖: {missing}，情感分析已禁用。", by_missing_deps=True)
 
         if self.is_disabled:
             reason = self.disable_reason or "Sentiment analysis disabled."
             print(
                 f"WeiboMultilingualSentimentAnalyzer initialized but disabled: {reason}"
             )
+            if self.disabled_by_missing_deps:
+                # 依赖探测失败可能只是并发导入的瞬时结果，首次使用时会自动重试。
+                # 仍需告警，避免像此前那样静默降级到日志之外。
+                logger.warning(
+                    f"情感分析依赖探测失败，暂不可用（首次使用时将自动重试）: {reason}"
+                )
         else:
             print(
                 "WeiboMultilingualSentimentAnalyzer 已创建，调用 initialize() 来加载模型"
             )
 
-    def disable(self, reason: Optional[str] = None, drop_state: bool = False) -> None:
-        """Disable sentiment analysis, optionally clearing loaded resources."""
+    def disable(self, reason: Optional[str] = None, drop_state: bool = False,
+                by_missing_deps: bool = False) -> None:
+        """Disable sentiment analysis, optionally clearing loaded resources.
+
+        by_missing_deps 标记本次禁用是否源于依赖探测失败。依赖失败可能是
+        并发导入造成的瞬时结果，因此只有这种情况允许 initialize() 稍后重试。
+        """
         self.is_disabled = True
         self.disable_reason = reason or "Sentiment analysis disabled."
+        self.disabled_by_missing_deps = by_missing_deps
         if drop_state:
             self.model = None
             self.tokenizer = None
@@ -127,10 +183,11 @@ class WeiboMultilingualSentimentAnalyzer:
             return False
         if not (TORCH_AVAILABLE and TRANSFORMERS_AVAILABLE):
             missing = _describe_missing_dependencies() or "未知依赖"
-            self.disable(f"缺少依赖: {missing}，情感分析已禁用。")
+            self.disable(f"缺少依赖: {missing}，情感分析已禁用。", by_missing_deps=True)
             return False
         self.is_disabled = False
         self.disable_reason = None
+        self.disabled_by_missing_deps = False
         return True
 
     def _select_device(self):
@@ -156,6 +213,15 @@ class WeiboMultilingualSentimentAnalyzer:
         Returns:
             是否初始化成功
         """
+        # 若当初是因依赖探测失败被禁用，先重新探测一次：并发的首次 transformers
+        # 导入可能瞬时失败，稍后重试通常即可成功（见文件顶部说明）。
+        if self.is_disabled and self.disabled_by_missing_deps:
+            if _load_torch() and _load_transformers():
+                logger.info(
+                    f"  依赖重新探测成功，已恢复情感分析（此前: {self.disable_reason}）"
+                )
+                self.enable()
+
         if self.is_disabled:
             reason = self.disable_reason or "情感分析功能已禁用"
             print(f"情感分析功能已禁用，跳过模型加载：{reason}")
@@ -163,7 +229,8 @@ class WeiboMultilingualSentimentAnalyzer:
 
         if not (TORCH_AVAILABLE and TRANSFORMERS_AVAILABLE):
             missing = _describe_missing_dependencies() or "未知依赖"
-            self.disable(f"缺少依赖: {missing}，情感分析已禁用。", drop_state=True)
+            self.disable(f"缺少依赖: {missing}，情感分析已禁用。", drop_state=True,
+                         by_missing_deps=True)
             print(f"缺少依赖: {missing}，无法加载情感分析模型。")
             return False
 
@@ -625,11 +692,8 @@ def analyze_sentiment(
     Returns:
         SentimentResult或BatchSentimentResult
     """
-    if (
-        initialize_if_needed
-        and not multilingual_sentiment_analyzer.is_initialized
-        and not multilingual_sentiment_analyzer.is_disabled
-    ):
+    # 同样不复用 is_disabled 短路：允许 initialize() 重新探测依赖后恢复。
+    if initialize_if_needed and not multilingual_sentiment_analyzer.is_initialized:
         multilingual_sentiment_analyzer.initialize()
 
     if isinstance(text_or_texts, str):

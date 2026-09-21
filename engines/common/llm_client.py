@@ -4,6 +4,7 @@ Shared OpenAI-compatible LLM client for all engines.
 
 import os
 import sys
+import time
 from datetime import datetime
 from typing import Any, Dict, Optional, Generator
 from uuid import uuid4
@@ -161,15 +162,39 @@ class LLMClient:
             raise e
 
     # TODO: 把代码里面所有有stream_invoke_to_string的这部分，全部都去掉
+
+    # 空流重试：思考模型（如 deepseek-v4-pro）在网关提前断流时，可能在 reasoning
+    # 阶段就被截断，一个 content chunk 都没吐出来（实测 4 轮中 1 轮如此）。
+    # 这种失败不抛异常，属于瞬时故障，用短而有界的重试挽救即可。
+    # 刻意不使用上面的 LLM_RETRY_CONFIG：它 initial_delay=60s、最多 6 次，
+    # 持续失败要白等约 35 分钟，对"空返回"这种场景过重。
+    EMPTY_STREAM_MAX_RETRIES: int = 2
+    EMPTY_STREAM_RETRY_DELAY: float = 3.0
+
     @with_retry(LLM_RETRY_CONFIG)
     def stream_invoke_to_string(self, system_prompt: str, user_prompt: str, **kwargs) -> str:
-        """Streaming LLM call, safely concatenated into a single string."""
-        byte_chunks = []
-        for chunk in self.stream_invoke(system_prompt, user_prompt, **kwargs):
-            byte_chunks.append(chunk.encode('utf-8'))
+        """Streaming LLM call, safely concatenated into a single string.
 
-        if byte_chunks:
-            return b''.join(byte_chunks).decode('utf-8', errors='replace')
+        空返回按失败处理并做短重试；重试耗尽仍为空则返回 ""，
+        由调用方决定如何兜底（如 format_report 会用段落摘要直接拼装报告）。
+        """
+        for attempt in range(self.EMPTY_STREAM_MAX_RETRIES + 1):
+            byte_chunks = []
+            for chunk in self.stream_invoke(system_prompt, user_prompt, **kwargs):
+                byte_chunks.append(chunk.encode('utf-8'))
+
+            if byte_chunks:
+                return b''.join(byte_chunks).decode('utf-8', errors='replace')
+
+            if attempt < self.EMPTY_STREAM_MAX_RETRIES:
+                logger.warning(
+                    f"流式调用返回空内容"
+                    f"（第 {attempt + 1}/{self.EMPTY_STREAM_MAX_RETRIES + 1} 次），"
+                    f"{self.EMPTY_STREAM_RETRY_DELAY}s 后重试"
+                )
+                time.sleep(self.EMPTY_STREAM_RETRY_DELAY)
+
+        logger.warning("流式调用连续返回空内容，已放弃重试，交由调用方兜底")
         return ""
 
 
@@ -191,12 +216,20 @@ class LLMClient:
         current_time = datetime.now().strftime("%Y年%m月%d日%H时%M分")
         user_prompt = f"今天的实际时间是{current_time}\n{user_prompt}"
 
-        llm = ChatDeepSeek(
-            model=self.model_name,
-            api_key=self.api_key,
-            base_url=self.base_url,
-            timeout=kwargs.pop("timeout", self.timeout),
-        )
+        # 注意：langchain-deepseek 真正生效的字段是 api_base；传 base_url 只会被塞进
+        # 未被使用的 openai_api_base，请求仍会打到官方 api.deepseek.com，用网关/中转
+        # 的 key 认证必然 401。且下面的 json_mode 回退复用同一个对象，同样 401，
+        # 导致 structured_invoke 永远失败。
+        # api_base 不接受 None，因此仅在配置了 base_url 时才传，否则沿用官方默认值。
+        llm_kwargs: Dict[str, Any] = {
+            "model": self.model_name,
+            "api_key": self.api_key,
+            "timeout": kwargs.pop("timeout", self.timeout),
+        }
+        if self.base_url:
+            llm_kwargs["api_base"] = self.base_url
+
+        llm = ChatDeepSeek(**llm_kwargs)
         messages = [
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": user_prompt},
