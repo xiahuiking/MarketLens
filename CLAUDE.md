@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## 项目概述
 
-**MarketLens**（尚舆 / 电商商品评论竞品分析平台）—— 一个多智能体（multi-agent）LLM 平台，用于分析电商商品评论与竞品。它将 Amazon 评论数据导入本地 MySQL 数据库，然后运行一组基于 LangGraph 的"引擎"Agent 生成研究报告，最终渲染为 HTML / Markdown / PDF。
+**MarketLens**（电商商品评论竞品分析平台）—— 一个多智能体（multi-agent）LLM 平台，用于分析电商商品评论与竞品。它将 Amazon 评论数据导入本地 MySQL 数据库，然后运行一组基于 LangGraph 的"引擎"Agent 生成研究报告，最终渲染为 HTML / Markdown / PDF。
 
 技术栈为：**FastAPI**（后端，`app/`）+ **LangGraph**（AI Agent，`engines/`）+ **Vue 3 / Vite / Element Plus / Pinia**（前端，`frontend/`）+ **MySQL**（默认数据库）。所有组件之间通过 REST + Server-Sent Events（SSE）通信。
 

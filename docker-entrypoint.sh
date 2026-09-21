@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-echo "==> SentinelAI backend starting"
+echo "==> MarketLens backend starting"
 echo "==> Waiting for MySQL at ${DB_HOST}:${DB_PORT}..."
 
 # Poll MySQL using pymysql (already in requirements.txt)
