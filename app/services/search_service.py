@@ -31,6 +31,11 @@ def search_all(query: str):
     if not query.strip():
         return {"success": False, "message": "搜索查询不能为空"}
 
+    # 开启一个成本核算 run：三个引擎 + 后续报告生成的 LLM 花费都归入它
+    from app.services import cost_service
+
+    run_id = cost_service.begin_run(query)
+
     # TODO:这个方法应该放在整个系统启动开始时候
     start_forum_engine()
 
@@ -42,7 +47,7 @@ def search_all(query: str):
         )
         t.start()
 
-    return {"success": True, "message": "已启动所有引擎搜索", "query": query}
+    return {"success": True, "message": "已启动所有引擎搜索", "query": query, "run_id": run_id}
 
 
 def get_latest_results() -> Dict[str, Any]:
@@ -98,6 +103,11 @@ def _find_matching_state_file(engine_dir: Path, report_file: Path) -> Path | Non
 
 def run_engine_task(engine_type: str, query: str):
     """Run an engine agent in the current thread, publishing progress via SSE."""
+    # 新线程不继承上下文，显式绑定 run_id，确保成本归因到这个分析 run
+    from engines.common import usage
+
+    usage.set_usage_context(run_id=usage.get_active_run_id(), engine=engine_type)
+
     _LOG_DIR.mkdir(parents=True, exist_ok=True)
     _log_file = str(_LOG_DIR / f"{engine_type}.log")
     # 按照模块名称，对不同的engine的日志，进行分流

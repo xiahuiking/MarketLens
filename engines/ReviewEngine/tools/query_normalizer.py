@@ -222,6 +222,8 @@ def _llm_translate(query: str) -> tuple[str, ...]:
                 getattr(settings, "KEYWORD_OPTIMIZER_BASE_URL", None)
                 or getattr(settings, "REVIEW_ENGINE_BASE_URL", None)
             ),
+            # 由 ReviewEngine 发起，归入口碑 Agent 的成本
+            engine_name="ReviewEngine",
         )
         raw = client.invoke(_TRANSLATE_SYSTEM_PROMPT, f"查询：{query}", timeout=30)
         terms = _split_keywords(raw)

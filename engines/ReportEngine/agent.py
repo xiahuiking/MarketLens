@@ -68,7 +68,12 @@ def generate_report(
     for label, ak, mn, bu in fallback_specs:
         if ak and mn:
             try:
-                rescue_clients.append((label, LLMClient(api_key=ak, model_name=mn, base_url=bu)))
+                # 单独标注，便于成本面板区分「主模型」与「换 Key 重试」的花费
+                rescue_clients.append((
+                    label,
+                    LLMClient(api_key=ak, model_name=mn, base_url=bu,
+                              engine_name=f"ReportEngine:rescue:{label}"),
+                ))
             except Exception as exc:
                 logger.warning(f"{label} LLM 初始化失败: {exc}")
 

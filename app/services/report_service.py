@@ -76,6 +76,11 @@ class ReportTask:
         self.markdown_file_path = ""
         self.markdown_file_name = ""
 
+        # Token / 成本核算：run_id 贯穿「分析引擎 + 论坛 + 报告生成」
+        self.run_id = ""
+        self.cost: dict[str, Any] = {}
+        self._cost_lock = threading.Lock()
+
         # 协作式取消与 SSE 事件推送
         self.cancel_requested = False
         self._event_queue: "queue.Queue[dict]" = queue.Queue()
@@ -108,7 +113,17 @@ class ReportTask:
             "markdown_file_ready": bool(self.markdown_file_path),
             "markdown_file_name": self.markdown_file_name,
             "markdown_file_path": self.markdown_file_path,
+            "run_id": self.run_id,
+            "cost": self.get_cost(),
         }
+
+    def get_cost(self) -> dict[str, Any]:
+        with self._cost_lock:
+            return dict(self.cost) if self.cost else {}
+
+    def set_cost(self, summary: dict[str, Any]) -> None:
+        with self._cost_lock:
+            self.cost = dict(summary or {})
 
     def record_event(self, event_name: str, payload: dict[str, Any]) -> None:
         """将事件写入 SSE 队列与历史缓冲区。"""
@@ -196,6 +211,13 @@ def _load_input_files(file_paths: dict[str, str]) -> dict[str, Any]:
 # ── Report generation (background thread) ───────────────────────────────────
 
 def run_report_generation(task: ReportTask, query: str, custom_template: str = ""):
+    # 该线程内所有 LLM 调用（含 rescue 客户端 / 图表修复）都归到本任务的 run
+    if task.run_id:
+        from engines.common import usage
+
+        usage.set_active_run(task.run_id)
+        usage.set_usage_context(run_id=task.run_id, engine="ReportEngine")
+
     try:
         from engines.ReportEngine.exceptions import ReportCancelledError
 
@@ -237,18 +259,37 @@ def run_report_generation(task: ReportTask, query: str, custom_template: str = "
             task.state_file_path = saved.get("state_filepath", "")
             task.ir_file_path = saved.get("ir_filepath", "")
 
+        # 完成后从账本拉一次最终汇总，避免最后几笔调用只落在内存里
+        _refresh_task_cost(task)
+
         task.update_status("completed", 100)
         task.record_event("html_ready", {"task": task.to_dict()})
         task.record_event("completed", {"task": task.to_dict()})
 
     except ReportCancelledError:
         logger.info(f"报告生成已取消: {task.task_id}")
+        _refresh_task_cost(task)
         task.update_status("cancelled", task.progress)
         task.record_event("cancelled", {"task": task.to_dict()})
     except Exception as e:
         logger.exception(f"报告生成过程中发生错误: {e}")
+        _refresh_task_cost(task)
         task.update_status("error", 0, str(e))
         task.record_event("error", {"task": task.to_dict()})
+
+
+def _refresh_task_cost(task: ReportTask) -> None:
+    """把 run 的最终成本汇总同步到任务（失败不影响任务收尾）。"""
+    if not task.run_id:
+        return
+    try:
+        from app.services import cost_service
+
+        summary = cost_service.get_run(task.run_id) or {}
+        if summary:
+            task.set_cost(summary)
+    except Exception:
+        logger.exception("刷新任务成本失败")
 
 
 def _handle_engine_event(task: ReportTask, event_type: str, payload: dict[str, Any]):
@@ -288,7 +329,39 @@ def create_task(query: str, custom_template: str = "") -> ReportTask:
         tasks_registry[task_id] = task
         _prune_tasks()
 
+    # 绑定成本 run 并把已有花费（分析阶段）作为基线写入任务，
+    # 这样前端在报告刚启动时就能看到端到端累计金额。
+    try:
+        from app.services import cost_service
+
+        task.run_id = cost_service.attach_report(query)
+        baseline = cost_service.get_run(task.run_id) or {}
+        if baseline:
+            task.set_cost(baseline)
+    except Exception:
+        logger.exception("绑定成本 run 失败（不影响报告生成）")
+
     return task
+
+
+def find_task_by_run_id(run_id: str) -> Optional[ReportTask]:
+    """按 run_id 找到对应的报告任务（用于把 LLM 用量回写到任务）。"""
+    if not run_id:
+        return None
+    with task_lock:
+        candidates = list(tasks_registry.values())
+        if current_task is not None:
+            candidates.append(current_task)
+    for task in candidates:
+        if task.run_id == run_id:
+            return task
+    return None
+
+
+def apply_cost_update(task: ReportTask, summary: dict[str, Any]) -> None:
+    """用量变化时更新任务成本并推送 SSE，供前端实时累加。"""
+    task.set_cost(summary)
+    task.record_event("cost_update", {"task": task.to_dict(), "cost": task.get_cost()})
 
 
 def start_task_thread(task: ReportTask, query: str, custom_template: str = ""):

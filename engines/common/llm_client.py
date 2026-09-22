@@ -1,5 +1,9 @@
 """
 Shared OpenAI-compatible LLM client for all engines.
+
+所有 LLM 调用都会经过这里，因此也是 token / 成本核算的**唯一埋点处**：
+``invoke`` / ``stream_invoke`` / ``stream_invoke_to_string`` / ``structured_invoke``
+会调用 :mod:`engines.common.usage` 记录模型、token、耗时与估算成本。
 """
 
 import os
@@ -7,10 +11,11 @@ import sys
 import time
 from datetime import datetime
 from typing import Any, Dict, Optional, Generator
-from uuid import uuid4
 
 from loguru import logger
 from openai import OpenAI
+
+from . import usage as usage_ledger
 
 # Ensure app/utils/ (containing retry_helper) is importable
 _current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -31,6 +36,34 @@ try:
 except ImportError:
     with_retry = _with_retry
     LLM_RETRY_CONFIG = None
+
+
+def _stream_options_unsupported(exc: Exception) -> bool:
+    """判断异常是否因为网关不认 ``stream_options``（而非真实请求失败）。"""
+    message = str(exc).lower()
+    return "stream_options" in message or "include_usage" in message
+
+
+def _unpack_structured(raw: Any) -> tuple[Any, Any, Any]:
+    """拆解 LangChain ``include_raw=True`` 的返回，兼容不带 raw 的实现。"""
+    if isinstance(raw, dict) and "parsed" in raw:
+        return raw.get("parsed"), raw.get("raw"), raw.get("parsing_error")
+    return raw, None, None
+
+
+def _langchain_usage(message: Any) -> Optional[dict[str, int]]:
+    """从 LangChain 的 AIMessage 中提取 usage（不同版本字段名不同）。"""
+    if message is None:
+        return None
+    meta = getattr(message, "usage_metadata", None)
+    if meta:
+        return meta if isinstance(meta, dict) else dict(meta)
+    response_metadata = getattr(message, "response_metadata", None) or {}
+    for key in ("token_usage", "usage"):
+        value = response_metadata.get(key) if isinstance(response_metadata, dict) else None
+        if value:
+            return value
+    return None
 
 
 class LLMClient:
@@ -70,10 +103,41 @@ class LLMClient:
             client_kwargs["base_url"] = base_url
         self.client = OpenAI(**client_kwargs)
 
+    # ── 成本核算 ────────────────────────────────────────────────────────────
+
+    def _record(
+        self,
+        method: str,
+        prompt_text: str = "",
+        completion_text: str = "",
+        usage: Any = None,
+        started: Optional[float] = None,
+        ok: bool = True,
+        error: str = "",
+        billable: Optional[bool] = None,
+    ) -> None:
+        """把一次调用交给核算账本；异常绝不影响主流程。"""
+        try:
+            duration_ms = (time.perf_counter() - started) * 1000.0 if started else 0.0
+            usage_ledger.record_llm_call(
+                engine=self.engine_name,
+                model=self.model_name,
+                method=method,
+                base_url=self.base_url or "",
+                prompt_text=prompt_text,
+                completion_text=completion_text,
+                usage=usage,
+                duration_ms=duration_ms,
+                ok=ok,
+                error=error,
+                billable=billable,
+            )
+        except Exception:
+            logger.exception("LLM 用量记录失败（不影响调用结果）")
+
     @with_retry(LLM_RETRY_CONFIG)
     def invoke(self, system_prompt: str, user_prompt: str, json_output:bool=False,**kwargs) -> str:
         """Non-streaming LLM call, returns the full response."""
-        call_uuid = uuid4()
         current_time = datetime.now().strftime("%Y年%m月%d日%H时%M分")
 
         time_prefix = f"今天的实际时间是{current_time}，用户输入:"
@@ -84,45 +148,46 @@ class LLMClient:
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": user_prompt},
         ]
-        llm_invoke_input = {
-            "uuid":str(call_uuid),
-            "messages":messages
-        }
-        # logger.debug(f"LLM调用，入参：\n {llm_invoke_input}")
 
         allowed_keys = {"temperature", "top_p", "presence_penalty", "frequency_penalty", "stream"}
         extra_params = {key: value for key, value in kwargs.items() if key in allowed_keys and value is not None}
 
         timeout = kwargs.pop("timeout", self.timeout)
-        if json_output:
-            response = self.client.chat.completions.create(
-                model=self.model_name,
-                messages=messages,
-                timeout=timeout,
-                response_format={
-                    "type":"json_object"
-                },
-                **extra_params,
-            )
-        else:
-            response = self.client.chat.completions.create(
-                model=self.model_name,
-                messages=messages,
-                timeout=timeout,
-                # response_format={
-                #     "type":"json_object"
-                # }
-                **extra_params,
-            )
+        estimate_prompt = f"{system_prompt}\n{user_prompt}"
+        started = time.perf_counter()
+        try:
+            if json_output:
+                response = self.client.chat.completions.create(
+                    model=self.model_name,
+                    messages=messages,
+                    timeout=timeout,
+                    response_format={
+                        "type":"json_object"
+                    },
+                    **extra_params,
+                )
+            else:
+                response = self.client.chat.completions.create(
+                    model=self.model_name,
+                    messages=messages,
+                    timeout=timeout,
+                    # response_format={
+                    #     "type":"json_object"
+                    # }
+                    **extra_params,
+                )
+        except Exception as exc:
+            self._record("invoke", prompt_text="", started=started, ok=False,
+                         error=str(exc), billable=False)
+            raise
 
         if response.choices and response.choices[0].message:
             content = response.choices[0].message.content.strip()
-            llm_invoke_output = {
-            "uuid":str(call_uuid),
-            "content":content
-            }
-            # logger.debug(f"LLM调用，出参：\n {llm_invoke_output}")
+            self._record("invoke", prompt_text=estimate_prompt, completion_text=content,
+                         usage=getattr(response, "usage", None), started=started)
             return content
+        self._record("invoke", prompt_text=estimate_prompt, completion_text="",
+                     usage=getattr(response, "usage", None), started=started)
         return ""
 
     def stream_invoke(self, system_prompt: str, user_prompt: str, **kwargs) -> Generator[str, None, None]:
@@ -144,22 +209,60 @@ class LLMClient:
 
         timeout = kwargs.pop("timeout", self.timeout)
 
+        started = time.perf_counter()
+        text_parts: list[str] = []
+        usage_obj: Any = None
+        error_message = ""
+
         try:
-            stream = self.client.chat.completions.create(
-                model=self.model_name,
-                messages=messages,
-                timeout=timeout,
-                **extra_params,
-            )
+            try:
+                # 请求网关在最后一块返回 usage；部分网关不认这个参数，需降级重试
+                stream = self.client.chat.completions.create(
+                    model=self.model_name,
+                    messages=messages,
+                    timeout=timeout,
+                    stream_options={"include_usage": True},
+                    **extra_params,
+                )
+            except Exception as stream_options_error:
+                if not _stream_options_unsupported(stream_options_error):
+                    raise
+                logger.debug(
+                    f"网关不支持 stream_options.include_usage，改用字符数估算 token: "
+                    f"{stream_options_error}"
+                )
+                stream = self.client.chat.completions.create(
+                    model=self.model_name,
+                    messages=messages,
+                    timeout=timeout,
+                    **extra_params,
+                )
 
             for chunk in stream:
+                chunk_usage = getattr(chunk, "usage", None)
+                if chunk_usage is not None:
+                    usage_obj = chunk_usage
                 if chunk.choices and len(chunk.choices) > 0:
                     delta = chunk.choices[0].delta
                     if delta and delta.content:
+                        text_parts.append(delta.content)
                         yield delta.content
         except Exception as e:
+            error_message = str(e)
             logger.error(f"流式请求失败: {str(e)}")
-            raise e
+            raise
+        finally:
+            # 生成器被提前 close / 抛 GeneratorExit 时也会走到这里，保证不漏记
+            self._record(
+                "stream",
+                prompt_text=f"{system_prompt}\n{user_prompt}",
+                completion_text="".join(text_parts),
+                usage=usage_obj,
+                started=started,
+                ok=not error_message,
+                error=error_message,
+                billable=None if not error_message else False,
+            )
 
     # TODO: 把代码里面所有有stream_invoke_to_string的这部分，全部都去掉
 
@@ -177,6 +280,8 @@ class LLMClient:
 
         空返回按失败处理并做短重试；重试耗尽仍为空则返回 ""，
         由调用方决定如何兜底（如 format_report 会用段落摘要直接拼装报告）。
+
+        每次尝试都会由 ``stream_invoke`` 单独计入核算（重试确实会产生多次计费）。
         """
         for attempt in range(self.EMPTY_STREAM_MAX_RETRIES + 1):
             byte_chunks = []
@@ -234,13 +339,38 @@ class LLMClient:
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": user_prompt},
         ]
+        estimate_prompt = f"{system_prompt}\n{user_prompt}"
+
+        def _attempt(msgs: list[dict[str, str]], method: str):
+            """执行一次结构化调用并记账；返回解析后的 Pydantic 对象。"""
+            started = time.perf_counter()
+            # include_raw=True 才能拿到底层 AIMessage，从中读取真实 token usage，
+            # 否则 with_structured_output 只返回解析后的对象，usage 无从获取。
+            structured = llm.with_structured_output(output_model, method=method, include_raw=True)
+            try:
+                raw = structured.invoke(msgs)
+            except Exception as exc:
+                # 400 之类的失败通常不计费：不估算 token，也不计入「价格未知」
+                self._record(f"structured:{method}", prompt_text="", started=started,
+                             ok=False, error=str(exc), billable=False)
+                raise
+            parsed, raw_message, parse_error = _unpack_structured(raw)
+            self._record(
+                f"structured:{method}",
+                prompt_text=estimate_prompt,
+                usage=_langchain_usage(raw_message),
+                started=started,
+                ok=True,
+            )
+            if parsed is None:
+                raise ValueError(f"结构化输出解析失败: {parse_error}")
+            return parsed
 
         # 优先使用 function calling（schema 约束更严格、更可靠）。
         # 但部分"思考模式"模型（如 deepseek-v4-pro / deepseek-reasoner）不支持
         # tool_choice，会返回 400，此时回退到 json_mode（JSON 输出模式）。
         try:
-            structured = llm.with_structured_output(output_model, method="function_calling")
-            return structured.invoke(messages)
+            return _attempt(messages, "function_calling")
         except Exception as func_call_error:
             logger.warning(
                 f"[structured_invoke] function calling 失败（{func_call_error}），"
@@ -260,8 +390,7 @@ class LLMClient:
             {"role": "system", "content": json_system_prompt},
             {"role": "user", "content": user_prompt},
         ]
-        structured = llm.with_structured_output(output_model, method="json_mode")
-        return structured.invoke(json_messages)
+        return _attempt(json_messages, "json_mode")
 
     def get_model_info(self) -> Dict[str, Any]:
         return {

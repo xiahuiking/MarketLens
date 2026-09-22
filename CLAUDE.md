@@ -84,8 +84,8 @@ tests/      pytest 测试套件
 
 - `app/main.py` —— 组装 FastAPI、注册路由、挂载 Vue SPA、执行 lifespan。
 - `app/routers/` —— REST 端点：`system`、`config`、`forum`、`search`、`events`（SSE）、`report`。
-- `app/services/` —— 业务逻辑，尽量保持框架无关（如 `report_service.py`、`forum_service.py`、`search_service.py`）。
-- `app/services/event_bus.py` —— 一个进程内极简的发布/订阅。服务通过 `publish()` 发布事件；`app/routers/events.py` 订阅并转发给 `/api/events/stream` 的 SSE 客户端。事件类型包括 `console_output`、`forum_message`、`engine_progress`、`engine_result`。
+- `app/services/` —— 业务逻辑，尽量保持框架无关（如 `report_service.py`、`forum_service.py`、`search_service.py`、`cost_service.py`）。
+- `app/services/event_bus.py` —— 一个进程内极简的发布/订阅。服务通过 `publish()` 发布事件；`app/routers/events.py` 订阅并转发给 `/api/events/stream` 的 SSE 客户端。事件类型包括 `console_output`、`forum_message`、`engine_progress`、`engine_result`、`cost_update`。
 
 ### `engines/` —— AI Agent
 
@@ -96,7 +96,8 @@ tests/      pytest 测试套件
 - **`TrendEngine`**（趋势 Agent）—— 基于网络搜索。
 - **`ReportEngine`** —— 汇总三个引擎的输出 + 论坛日志，生成最终报告。
 - **`ForumEngine`** —— 主持上述 Agent 之间讨论的"主持人"。
-- **`engines/common/llm_client.py`** —— 共享的 `LLMClient`，封装 OpenAI SDK 以对接任意 OpenAI 兼容端点。
+- **`engines/common/llm_client.py`** —— 共享的 `LLMClient`，封装 OpenAI SDK 以对接任意 OpenAI 兼容端点，同时是全平台 LLM 调用的**唯一成本埋点处**。
+- **`engines/common/usage.py` + `pricing.py`** —— token / 成本核算：用量账本（记录、聚合、JSONL 落盘、订阅回调）与价目表（`model_prices.json`，可编辑）。
 
 每个引擎遵循相同的目录结构：`agent.py`（模块级入口：`run_research()` / `generate_report()`）、`context.py`（一个 `@dataclass` 依赖容器，持有 `llm_client`、`config`、工具）、`graph.py`（`build_*_graph(ctx)` 返回编译好的 `StateGraph`）、`nodes/`（每个图节点一个类，各自 `__call__(state) -> dict`）、`llms/base.py`（重新导出共享的 `LLMClient`）、`tools/`、`prompts/`、`utils/`。
 
@@ -143,6 +144,8 @@ download_amazon.py → import_amazon.py → MySQL (product/review)
 - **实际默认数据库是 MySQL**，尽管 `app/config.py` 中 `DB_DIALECT` 的 `Field(default="postgresql")`。docker-compose 文件、`tools/ecommerce/schema.py` 以及导入脚本均假定 MySQL。请显式设置 `DB_DIALECT=mysql`，或依赖 `.env`/docker-compose 的配置。
 
 - **`LLMClient`**（`engines/common/llm_client.py`）是全项目唯一的 OpenAI 兼容 chat 封装，它会在用户 prompt 中注入"今天的实际时间"前缀。`structured_invoke()` 使用 LangChain 的 `with_structured_output`，对不支持 `tool_choice` 的推理模型提供 function-calling → json-mode 的降级回退。
+
+- **Token / 成本核算的埋点契约。** 新增 LLM 调用必须走 `LLMClient`，或像 `engines/ForumEngine/llm_host.py`（裸 OpenAI 客户端）那样显式调用 `usage.record_llm_call(...)`；绕过它 = 该调用在成本面板里不可见。归因靠 `app/services/cost_service.py`：`usage.set_active_run()` 做全局兜底，`usage.set_usage_context()` 做线程级覆盖（新线程不继承上下文，需显式设置），报告任务通过 `ReportTask.run_id` 关联。`structured_invoke()` 必须保留 `include_raw=True`，否则 `with_structured_output` 只返回解析后的对象，拿不到真实 token usage。价目表未命中的模型一律标为「价格未知」并计入 `unpriced_calls`，**不要**回退成 0。
 
 - **LLM 配置是按 Agent 划分的。** ReportEngine 还会额外从其他引擎的 Key 构建一组"rescue" LLM 客户端，用于重试失败的章节生成。
 
