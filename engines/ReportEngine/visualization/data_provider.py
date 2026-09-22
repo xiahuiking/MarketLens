@@ -15,7 +15,7 @@ from __future__ import annotations
 
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
 from loguru import logger
 
@@ -23,6 +23,10 @@ from .chart_builder import build_all_widgets
 
 # 注意：ProductReviewDB / ABSA 采用延迟导入（见方法内部），避免 import
 # 本模块时连带触发 engines.ReviewEngine.tools 的重型依赖（情感模型/聚类）。
+# 注解中要用的名字单独走 TYPE_CHECKING 导入：运行时不会被求值（本模块启用了
+# from __future__ import annotations），但类型检查器与 typing.get_type_hints() 能解析到。
+if TYPE_CHECKING:
+    from engines.ReviewEngine.tools.search import ProductReviewDB
 
 # 默认时间窗口：Amazon 2023 数据大致落在此区间
 DEFAULT_START = "2022-01-01"
