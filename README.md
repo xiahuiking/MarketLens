@@ -4,7 +4,7 @@
 
 **电商商品评论与竞品分析的多智能体平台**
 
-把 Amazon 评论数据变成一份可交付的研究报告 —— 三个分析 Agent 并行研究，主持人 Agent 交叉质询，报告 Agent 生成结构化报告（HTML / Markdown / PDF）
+把电商商品评论数据变成一份可交付的研究报告 —— 三个分析 Agent 并行研究，主持人 Agent 交叉质询，报告 Agent 生成结构化报告（HTML / Markdown / PDF）
 
 ![Python](https://img.shields.io/badge/Python-3.12-3776AB?logo=python&logoColor=white)
 ![FastAPI](https://img.shields.io/badge/FastAPI-0.121-009688?logo=fastapi&logoColor=white)
