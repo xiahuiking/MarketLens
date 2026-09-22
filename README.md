@@ -64,6 +64,7 @@ MarketLens 把这三件事交给三个**职责单一的 Agent**，各自产出�
 | **章节自愈** | 章节 JSON 校验失败时走解析修复 → 图表修复 → 换用其他 Agent 的 Key 重试的多级兜底 |
 | **实时进度（SSE）** | 全局事件流 + 每任务事件流，均带事件序号与重放缓冲，断线重连不丢进度；支持协作式取消 |
 | **模板与预算** | 报告生成前先做模板选择、章节切片与预算规划，避免长报告被 token 上限截断 |
+| **Token / 成本核算** | 全平台 LLM 调用统一记账：按 run 累计 token、耗时与折算人民币的成本，报告页实时显示「这一次报告花了多少钱」，含按引擎/按模型的明细 |
 
 ---
 
@@ -314,6 +315,10 @@ ReviewEngine 是唯一读库的引擎，运行前需要先把 Amazon Reviews 202
 | `GET` | `/api/report/export/md/{task_id}` | 导出 Markdown |
 | `GET` | `/api/report/export/pdf/{task_id}` | 导出 PDF |
 | `POST` | `/api/report/export/pdf-from-ir` | 由 IR 直接导出 PDF |
+| `GET` | `/api/cost/current` | 当前 run 的 token / 成本汇总（分析阶段也在累计） |
+| `GET` | `/api/cost/run/{run_id}` | 指定 run 的成本汇总，`?include_records=true` 附带逐次调用明细 |
+| `GET` | `/api/cost/runs` | 最近的 run 成本列表 |
+| `GET` | `/api/cost/prices` | 价目表元信息（展示币种、条目数、来源文件） |
 
 交互式文档：启动后访问 `/docs`（Swagger UI）。
 
@@ -409,6 +414,23 @@ mock 按节点实际请求的 `output_model` 分派，而不是按调用序号�
 搜索工具通过 `SEARCH_TOOL_TYPE` 在三家之间切换：`TavilyAPI` / `AnspireAPI` / `BochaAPI`。
 
 `POST /api/config` 支持**运行时热更新**，无需重启进程。
+
+### Token / 成本核算
+
+成本核算默认开启，相关变量都以 `COST_` 开头，可在 `.env` 覆盖：
+
+| 变量 | 默认值 | 语义 |
+|---|---|---|
+| `COST_TRACKING_ENABLED` | `true` | 关掉后不再采集任何用量，也不落盘 |
+| `MODEL_PRICES_PATH` | 空 | 自定义价目表 JSON 路径；留空用 `engines/common/model_prices.json` |
+| `COST_DISPLAY_CURRENCY` | `CNY` | 展示币种（`CNY` / `USD`） |
+| `USD_TO_CNY_RATE` | `7.2` | 折算汇率；**价目表里的 `usd_to_cny` 优先**，未定义时才用此值 |
+| `COST_ESTIMATE_TOKENS` | `true` | 网关不返回 usage 时，按字符数估算并标记为「估算」 |
+| `COST_USAGE_DIR` | `logs/usage` | 逐次调用明细的 JSONL 落盘目录（每个 run 一个文件） |
+
+**价目表要自己核对。** `engines/common/model_prices.json` 里的单价是**示意价**（每百万 token，条目自带币种），实际计费还会受缓存命中、阶梯价、中转商加价与汇率影响。请按自己的账单修改该文件——未命中价目表的模型会被明确标注为「价格未知」并计入 `unpriced_calls`，而不会被静默算成 0。若模型名带日期/版本后缀（如 `kimi-k2-0711-preview`），命中逻辑会按别名/子串匹配。
+
+一次 **run** 覆盖「三个分析引擎 + 论坛 + 报告生成」的完整周期：发起搜索时开启，生成报告时复用；同一 run 里的第二份报告会自动另起新 run，避免把第一份的分析成本重复计入。聚合结果落在 `data/usage/<run_id>.json`，逐次明细落在 `logs/usage/<run_id>.jsonl`，进程重启后仍可对账。
 
 > ⚠️ `DB_DIALECT` 的字段默认值是 `postgresql`，但 docker-compose、`tools/ecommerce/schema.py` 与导入脚本均假定 **MySQL**。请在 `.env` 中显式设置 `DB_DIALECT=mysql`。
 

@@ -7,11 +7,12 @@
 
 ```bash
 ./project_venv/bin/pytest -q
-# 245 passed, 0 failed, 0 error  (约 3 分 25 秒)
+# 272 passed, 0 failed, 0 error  (约 3 分 14 秒)
 ```
 
 根目录直接运行 `pytest` 即可，无需再写 `pytest tests/`。
-用例数从 506 降到 245，是因为移除了爬虫模块及其 261 个测试（见已修复第 4 条）。
+用例数从 506 降到 245 是因为移除了爬虫模块及其 261 个测试（见已修复第 4 条）；
+随后新增 27 个 token/成本核算用例（见已修复第 5 条）达到 272。
 
 `integration` 标记（`-m integration`）保留用于需要真实外部服务（LLM / 搜索 / 数据库）的用例；
 当前 `tests/` 下暂无此类用例。
@@ -187,7 +188,43 @@ $ ./project_venv/bin/python -c "import tools.ecommerce.schema as s; print(s.init
 
 ---
 
-## 二、仍待修复（按优先级）
+## 二、已修复（2026-09-22）
+
+### 5. LLM 调用无 token / 成本 / 耗时核算
+
+**现象**：一次报告生成会调用三个分析引擎 + 论坛 + 章节生成 + 图表修复，调用次数与成本完全不可见，
+只能翻 `logs/*.log`；换模型后也无法回答"这次报告到底花了多少钱"。
+
+**修复**
+
+- 在 `engines/common/llm_client.py` 的四个出口（`invoke` / `stream_invoke` /
+  `stream_invoke_to_string` / `structured_invoke`）统一埋点；`structured_invoke` 改为
+  `include_raw=True`，否则 LangChain 只返回解析后的对象、拿不到真实 usage。
+- 新增 `engines/common/usage.py`（用量账本：记录、聚合、JSONL 落盘、订阅回调）与
+  `engines/common/pricing.py` + `model_prices.json`（可编辑价目表，混合币种按汇率折算人民币）。
+- 新增 `app/services/cost_service.py` 与 `app/routers/cost.py`：以 **run** 为口径贯穿
+  「分析引擎 + 论坛 + 报告生成」，暴露 `/api/cost/{current,run/{id},runs,prices}`，
+  并通过 `cost_update` 事件在报告 SSE 上实时累加。
+- 前端新增报告页成本面板（`frontend/src/components/report/CostPanel.vue`），
+  显示总成本、token、耗时与按引擎/按模型明细。
+- 坚守"不猜测"：网关不返回 usage 时按字符数估算并标记 `estimated`；
+  价目表未命中的模型标为「价格未知」并计入 `unpriced_calls`，失败调用不计费也不估算。
+
+**验证**
+
+```bash
+$ ./project_venv/bin/pytest tests/test_usage_cost.py -q
+27 passed in 1.30s
+$ ./project_venv/bin/pytest -q
+272 passed, 29 warnings in 193.91s
+```
+
+`tests/test_usage_cost.py` 覆盖 token 估算、usage 归一化、价目表匹配/折算、账本聚合与落盘、
+四个出口的埋点、run 生命周期与任务成本回写，全部离线（不访问外部服务）。
+
+---
+
+## 三、仍待修复（按优先级）
 
 ### 1. 无打包配置，20 处 `sys.path` 注入
 
@@ -229,15 +266,7 @@ def _get_settings():
 **典型待改点**：`app/services/search_service.py:16,150,181,221`、
 `engines/CompetitorEngine/tools/search.py:31`、`engines/ForumEngine/llm_host.py:9`。
 
-### 3. LLM 调用无 token / 成本 / 耗时核算
-
-一次报告生成会调用三个分析引擎 + 章节生成 + 图表修复，调用次数与成本完全不可见，
-只能翻 `logs/*.log`。
-**建议**：在 `engines/common/llm_client.py` 的 `invoke` / `stream_invoke_to_string` /
-`structured_invoke` 三个出口统一埋点，落盘 JSONL（模型、prompt/completion tokens、耗时、重试次数），
-再在 `/api/events` 上暴露。
-
-### 4. 任务状态只在内存，且最多保留 5 条
+### 3. 任务状态只在内存，且最多保留 5 条
 
 ```python
 # app/services/report_service.py:28,32,34
@@ -250,13 +279,13 @@ tasks_registry: dict[str, "ReportTask"] = {}
 没有并发上限，多个报告任务会同时打满 LLM 配额。
 **建议**：任务状态落表（复用现有 MySQL），加并发信号量，并把裁剪策略改为按时间/TTL。
 
-### 5. 无 CI
+### 4. 无 CI
 
 没有 `.github/`。README 承诺过 `ruff check` + `pytest -m "not integration"`。
 **建议**：加一条最小 workflow（安装 `requirements.txt` → `ruff check` → `pytest -q`）。
 整套测试已完全 mock 掉外部依赖（不再有需要爬虫依赖的用例），因此 CI 无需数据库、网络或额外 venv。
 
-### 6. 顶层无 LICENSE（有意为之）
+### 5. 顶层无 LICENSE（有意为之）
 
 ```bash
 $ ls LICENSE                    # 不存在（作者保留全部权利，这是明确决定，不是遗漏）
@@ -267,7 +296,7 @@ $ ls LICENSE                    # 不存在（作者保留全部权利，这是�
 与 `renderers/libs/` 下的 html2canvas / jspdf（各自附带许可，随文件分发时保留）。
 **建议**：若后续要公开分发，补一份顶层许可即可；README「第三方组件与许可」已列明现状。
 
-### 7. 评测未基准化
+### 6. 评测未基准化
 
 `scripts/experiment_sentiment_impact.py` 已有 5 个子命令
 （`quality` / `run` / `prompt-ab` / `compare` / `llm-vs-model`），

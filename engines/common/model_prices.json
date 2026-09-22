@@ -1,0 +1,58 @@
+{
+  "schema_version": 1,
+  "display_currency": "CNY",
+  "usd_to_cny": 7.2,
+  "updated_at": "2026-09-22",
+  "note": "单价为每百万 token（per 1M tokens）的示意价，仅用于成本估算。各家厂商/中转商实际计费（缓存命中、阶梯价、批量折扣）与此可能存在差异，请按你的账单核对后修改本文件；也可用环境变量 MODEL_PRICES_PATH 指向自定义价目表。本文件里的 usd_to_cny 优先于 .env 的 USD_TO_CNY_RATE。",
+  "models": [
+    {
+      "name": "deepseek-chat",
+      "aliases": ["deepseek-chat", "deepseek-v3", "deepseek-v3.1", "deepseek-v3.2"],
+      "currency": "CNY",
+      "input_per_million": 2.0,
+      "output_per_million": 8.0
+    },
+    {
+      "name": "deepseek-reasoner",
+      "aliases": ["deepseek-reasoner", "deepseek-r1", "deepseek-v4-pro"],
+      "currency": "CNY",
+      "input_per_million": 4.0,
+      "output_per_million": 16.0
+    },
+    {
+      "name": "kimi-k2",
+      "aliases": ["kimi-k2", "kimi-k2-0711-preview", "kimi-k2-0905-preview", "moonshot-v1"],
+      "currency": "CNY",
+      "input_per_million": 4.0,
+      "output_per_million": 16.0
+    },
+    {
+      "name": "gemini-2.5-pro",
+      "aliases": ["gemini-2.5-pro", "gemini-2.5-flash", "gemini-2.0-flash"],
+      "currency": "USD",
+      "input_per_million": 1.25,
+      "output_per_million": 10.0
+    },
+    {
+      "name": "qwen-plus",
+      "aliases": ["qwen-plus", "qwen3", "qwen-max", "qwen-turbo"],
+      "currency": "CNY",
+      "input_per_million": 0.8,
+      "output_per_million": 2.0
+    },
+    {
+      "name": "gpt-4o",
+      "aliases": ["gpt-4o", "gpt-4o-mini", "gpt-4.1", "gpt-4.1-mini"],
+      "currency": "USD",
+      "input_per_million": 2.5,
+      "output_per_million": 10.0
+    },
+    {
+      "name": "claude-sonnet-4",
+      "aliases": ["claude-sonnet-4", "claude-3-5-sonnet", "claude-3-7-sonnet"],
+      "currency": "USD",
+      "input_per_million": 3.0,
+      "output_per_million": 15.0
+    }
+  ]
+}

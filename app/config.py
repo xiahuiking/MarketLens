@@ -121,6 +121,14 @@ class Settings(BaseSettings):
     MAX_SEARCH_RESULTS: int = Field(20, description="最大搜索结果数（TrendEngine）")
     # Bocha 兼容键（别名）
     BOCHA_API_KEY: Optional[str] = Field(None, description="Bocha 兼容键（别名）")
+
+    # ================== Token / 成本核算 ==================
+    COST_TRACKING_ENABLED: bool = Field(True, description="是否启用 LLM token/成本核算（关闭后不再采集与落盘）")
+    MODEL_PRICES_PATH: Optional[str] = Field(None, description="自定义模型价目表 JSON 路径；留空使用 engines/common/model_prices.json")
+    COST_DISPLAY_CURRENCY: str = Field("CNY", description="成本展示币种，支持 CNY 或 USD")
+    USD_TO_CNY_RATE: float = Field(7.2, description="美元兑人民币汇率（价目表含 USD 单价时用于折算）")
+    COST_ESTIMATE_TOKENS: bool = Field(True, description="网关未返回 usage 时，是否按字符数估算 token 并标记为估算值")
+    COST_USAGE_DIR: str = Field("logs/usage", description="LLM 调用明细 JSONL 落盘目录（每个 run 一个文件）")
     
     # 只有配置了这个属性，才能够自动加载.env文件
     model_config = ConfigDict(
@@ -160,6 +168,8 @@ def reload_settings() -> Settings:
         'FORUM_HOST_API_KEY', 'FORUM_HOST_BASE_URL', 'FORUM_HOST_MODEL_NAME',
         'KEYWORD_OPTIMIZER_API_KEY', 'KEYWORD_OPTIMIZER_BASE_URL', 'KEYWORD_OPTIMIZER_MODEL_NAME',
         'TAVILY_API_KEY', 'SEARCH_TOOL_TYPE', 'BOCHA_WEB_SEARCH_API_KEY', 'ANSPIRE_API_KEY',
+        'COST_TRACKING_ENABLED', 'MODEL_PRICES_PATH', 'COST_DISPLAY_CURRENCY',
+        'USD_TO_CNY_RATE', 'COST_ESTIMATE_TOKENS', 'COST_USAGE_DIR',
     ]
     for k in _keys_to_clear:
         os.environ.pop(k, None)

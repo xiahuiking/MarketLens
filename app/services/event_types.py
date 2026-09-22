@@ -10,3 +10,4 @@ class EventType(StrEnum):
     CONSOLE_OUTPUT = "console_output"
     ENGINE_ERROR = "engine_error"
     ENGINE_RESULT = "engine_result"
+    COST_UPDATE = "cost_update"

@@ -12,7 +12,7 @@ from loguru import logger
 from app import config as app_config
 from app.services.forum_service import init_forum_log, shutdown_forum_service
 from app.utils.forum_reader import init_forum_reader, shutdown_forum_reader
-from app.routers import system, config, forum, search, events, report
+from app.routers import system, config, forum, search, events, report, cost
 
 
 async def _warmup_sentiment_if_enabled() -> None:
@@ -40,6 +40,13 @@ async def lifespan(app: FastAPI):
     events.init_event_stream()
     init_forum_log()
     init_forum_reader()
+    # 在最早时机接通 token/成本核算的事件订阅，避免漏掉启动后的首批 LLM 调用
+    try:
+        from app.services import cost_service
+
+        cost_service.ensure_wired()
+    except Exception as exc:  # pragma: no cover - 核算不可用不应阻断启动
+        logger.warning(f"成本核算初始化失败: {exc}")
     await _warmup_sentiment_if_enabled()
     logger.info("FastAPI 服务器已启动，共享服务已初始化")
     try:
@@ -72,6 +79,7 @@ app.include_router(forum.router)
 app.include_router(search.router)
 app.include_router(events.router)
 app.include_router(report.router)
+app.include_router(cost.router)
 
 # ── SPA & static files ──────────────────────────────────────────────────
 

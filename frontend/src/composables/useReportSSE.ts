@@ -5,7 +5,7 @@ import type { ReportTask } from '@/stores/report'
 const REPORT_SSE_EVENTS = [
   'status', 'stage', 'chapter_status', 'chapter_chunk',
   'warning', 'error', 'debug', 'html_ready', 'completed',
-  'log', 'cancelled', 'heartbeat',
+  'log', 'cancelled', 'heartbeat', 'cost_update',
 ] as const
 
 export function useReportSSE() {

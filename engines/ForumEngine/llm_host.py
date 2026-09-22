@@ -6,8 +6,10 @@ from openai import OpenAI
 from typing import List, Dict, Any, Optional
 from datetime import datetime
 import re
+import time
 from app.config import settings
 
+from engines.common import usage as usage_ledger
 from app.utils.retry_helper import with_graceful_retry, SEARCH_API_RETRY_CONFIG
 
 
@@ -202,24 +204,53 @@ class ForumHost:
                 user_prompt = f"{time_prefix}\n{user_prompt}"
             else:
                 user_prompt = time_prefix
-                
-            response = self.client.chat.completions.create(
-                model=self.model,
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": user_prompt}
-                ],
-                temperature=0.6,
-                top_p=0.9,
-            )
+
+            started = time.perf_counter()
+            try:
+                response = self.client.chat.completions.create(
+                    model=self.model,
+                    messages=[
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": user_prompt}
+                    ],
+                    temperature=0.6,
+                    top_p=0.9,
+                )
+            except Exception as exc:
+                # 走的是裸 OpenAI 客户端而非共享 LLMClient，故在此单独记一笔
+                self._record_usage(system_prompt, user_prompt, "", None, started, ok=False, error=str(exc))
+                raise
 
             if response.choices:
                 content = response.choices[0].message.content
+                self._record_usage(system_prompt, user_prompt, content or "",
+                                   getattr(response, "usage", None), started)
                 return {"success": True, "content": content}
             else:
+                self._record_usage(system_prompt, user_prompt, "", getattr(response, "usage", None), started)
                 return {"success": False, "error": "API返回格式异常"}
         except Exception as e:
             return {"success": False, "error": f"API调用异常: {str(e)}"}
+
+    def _record_usage(self, system_prompt: str, user_prompt: str, completion_text: str,
+                      usage: Any, started: float, ok: bool = True, error: str = "") -> None:
+        """把主持人单次调用计入 token/成本核算（失败绝不影响主流程）。"""
+        try:
+            usage_ledger.record_llm_call(
+                engine="ForumEngine",
+                model=self.model or "unknown",
+                method="invoke",
+                base_url=self.base_url or "",
+                prompt_text=f"{system_prompt}\n{user_prompt}" if ok else "",
+                completion_text=completion_text,
+                usage=usage,
+                duration_ms=(time.perf_counter() - started) * 1000.0,
+                ok=ok,
+                error=error,
+                billable=None if ok else False,
+            )
+        except Exception:
+            pass
     
     def _format_host_speech(self, speech: str) -> str:
         """格式化主持人发言"""

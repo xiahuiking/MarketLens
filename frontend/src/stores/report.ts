@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import * as reportApi from '@/api/report'
+import type { CostSummary } from '@/api/cost'
 
 export interface ReportTask {
   task_id: string
@@ -21,6 +22,8 @@ export interface ReportTask {
   markdown_file_ready: boolean
   markdown_file_name: string
   markdown_file_path: string
+  run_id: string
+  cost: CostSummary | null
 }
 
 export interface SSEEvent {
@@ -145,6 +148,14 @@ export const useReportStore = defineStore('report', () => {
         break
       case 'cancelled':
         if (task) currentTask.value = task
+        break
+      case 'cost_update':
+        // 生成过程中实时累加：优先用事件里的任务快照，缺失时只更新成本字段
+        if (task) {
+          currentTask.value = task
+        } else if (currentTask.value && payload.cost) {
+          currentTask.value = { ...currentTask.value, cost: payload.cost }
+        }
         break
     }
   }
