@@ -219,18 +219,39 @@ def run_report_generation(task: ReportTask, query: str, custom_template: str = "
         usage.set_usage_context(run_id=task.run_id, engine="ReportEngine")
 
     try:
-        from engines.ReportEngine.exceptions import ReportCancelledError
+        from app.services import console_log
 
         task.update_status("running", 5)
         task.record_event("status", {"task": task.to_dict()})
+        console_log.console_log(
+            "report",
+            f"报告任务已启动：{query}",
+            level="success",
+            source="report",
+            highlight=True,
+        )
 
         check_result = check_engines_ready()
         if not check_result.get("ready"):
-            task.update_status("error", 0,
-                               f"输入文件未准备就绪: {check_result.get('missing_files', [])}")
+            missing = check_result.get("missing_files", [])
+            task.update_status("error", 0, f"输入文件未准备就绪: {missing}")
             task.record_event("error", {"task": task.to_dict()})
+            console_log.console_log(
+                "report",
+                f"报告生成中止：输入文件未就绪（{missing}）",
+                level="error",
+                source="report",
+                highlight=True,
+            )
             return
 
+        console_log.console_log(
+            "report",
+            "输入就绪：" + "、".join(check_result.get("files_found", [])) ,
+            source="report",
+        )
+
+        from engines.ReportEngine.exceptions import ReportCancelledError
         from engines.ReportEngine.agent import generate_report
 
         content = _load_input_files(check_result.get("latest_files", {}))
@@ -265,17 +286,30 @@ def run_report_generation(task: ReportTask, query: str, custom_template: str = "
         task.update_status("completed", 100)
         task.record_event("html_ready", {"task": task.to_dict()})
         task.record_event("completed", {"task": task.to_dict()})
+        console_log.console_log(
+            "report",
+            f"报告生成完成：{task.report_file_name or task.task_id}",
+            level="success",
+            source="report",
+            highlight=True,
+        )
 
     except ReportCancelledError:
         logger.info(f"报告生成已取消: {task.task_id}")
         _refresh_task_cost(task)
         task.update_status("cancelled", task.progress)
         task.record_event("cancelled", {"task": task.to_dict()})
+        console_log.console_log(
+            "report", "报告生成已取消", level="warning", source="report", highlight=True
+        )
     except Exception as e:
         logger.exception(f"报告生成过程中发生错误: {e}")
         _refresh_task_cost(task)
         task.update_status("error", 0, str(e))
         task.record_event("error", {"task": task.to_dict()})
+        console_log.console_log(
+            "report", f"报告生成失败：{e}", level="error", source="report", highlight=True
+        )
 
 
 def _refresh_task_cost(task: ReportTask) -> None:
@@ -294,6 +328,7 @@ def _refresh_task_cost(task: ReportTask) -> None:
 
 def _handle_engine_event(task: ReportTask, event_type: str, payload: dict[str, Any]):
     """将 ReportEngine 的 stream_handler 事件映射为前端可消费的 SSE 事件。"""
+    from app.services import console_log
     from engines.ReportEngine.exceptions import ReportCancelledError
 
     if task.cancel_requested:
@@ -303,12 +338,62 @@ def _handle_engine_event(task: ReportTask, event_type: str, payload: dict[str, A
         pct = int(payload.get("progress", 0))
         task.update_status("running", pct)
         task.record_event("status", {"task": task.to_dict()})
-    elif event_type in ("chapter_status", "chapter_chunk"):
+        message = payload.get("message")
+        if message:
+            console_log.console_log("report", str(message), source="report")
+    elif event_type == "chapter_status":
+        status = payload.get("status")
+        title = payload.get("title") or payload.get("chapterId") or "章节"
+        attempt = payload.get("attempt") or 1
+        if status == "running":
+            console_log.console_log("report", f"开始撰写章节：{title}", source="report")
+        elif status == "completed":
+            console_log.console_log(
+                "report",
+                f"章节完成：{title}" + (f"（第 {attempt} 次尝试）" if attempt > 1 else ""),
+                level="success",
+                source="report",
+                highlight=True,
+            )
+        elif status == "retrying":
+            console_log.console_log(
+                "report",
+                f"章节重试（第 {attempt} 次）：{title} — {payload.get('error') or payload.get('reason') or ''}",
+                level="warning",
+                source="report",
+            )
+        elif status == "error":
+            console_log.console_log(
+                "report",
+                f"章节生成失败：{title} — {payload.get('error') or ''}",
+                level="error",
+                source="report",
+                highlight=True,
+            )
+        task.record_event(event_type, payload)
+    elif event_type == "chapter_chunk":
         task.record_event(event_type, payload)
     elif event_type == "stage":
+        stage = payload.get("stage") or payload.get("name") or ""
+        message = payload.get("message") or ""
+        if stage or message:
+            console_log.console_log(
+                "report",
+                f"[阶段] {message or stage}",
+                source="report",
+            )
         task.record_event("stage", payload)
     else:
         # 透传 warning / debug 等其余事件
+        if event_type in ("warning", "error"):
+            text = payload.get("message") or payload.get("error") or str(payload)
+            console_log.console_log(
+                "report",
+                str(text),
+                level="error" if event_type == "error" else "warning",
+                source="report",
+                highlight=event_type == "error",
+            )
         task.record_event(event_type, payload)
 
 

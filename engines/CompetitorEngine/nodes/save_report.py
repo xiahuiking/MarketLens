@@ -32,6 +32,11 @@ class SaveReportNode:
         with open(filepath, "w", encoding="utf-8") as f:
             f.write(final_report)
         logger.info(f"报告已保存到: {filepath}")
+        self.ctx.log(
+            f"报告已保存：{filename}（{len(final_report)} 字）",
+            level="success",
+            highlight=True,
+        )
 
         if self.ctx.config.SAVE_INTERMEDIATE_STATES:
             dc_state = _rebuild_state_from_graph(state)

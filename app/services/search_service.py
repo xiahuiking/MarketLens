@@ -26,6 +26,39 @@ OUTPUT_DIRS = {
 _LOG_DIR = Path(__file__).resolve().parent.parent.parent / "logs"
 
 
+def _progress_callback(engine: str):
+    """构造注入引擎的 progress_callback。
+
+    同一个回调承载两类事件：
+    - ``kind == "console"``：节点级细节日志（检索命中、总结完成…），只推给前端日志栏，
+      不影响进度条；
+    - 其余：进度更新，同时补一条日志行，保证日志栏从头到尾都有内容。
+    """
+
+    def callback(data: Dict[str, Any]):
+        payload = dict(data or {})
+        if payload.pop("kind", "") == "console":
+            from app.services import console_log
+
+            console_log.console_log(
+                payload.pop("engine", engine) or engine,
+                payload.get("text", ""),
+                level=payload.get("level", "info"),
+                source=payload.get("source", engine),
+                highlight=bool(payload.get("highlight")),
+            )
+            return
+
+        message = payload.get("message") or ""
+        publish(EventType.ENGINE_PROGRESS, {"engine": engine, **payload})
+        if message:
+            from app.services import console_log
+
+            console_log.console_log(engine, message, source=engine)
+
+    return callback
+
+
 def search_all(query: str):
     """Launch all 3 engine tasks in parallel background threads."""
     if not query.strip():
@@ -120,6 +153,14 @@ def run_engine_task(engine_type: str, query: str):
     )
 
     try:
+        from app.services import console_log
+
+        console_log.console_log(
+            engine_type,
+            f"引擎启动，开始分析「{query}」",
+            level="success",
+            highlight=True,
+        )
         publish(EventType.ENGINE_PROGRESS, {
             "engine": engine_type, "status": "starting",
             "message": "正在初始化引擎...", "progress_pct": 0,
@@ -141,6 +182,12 @@ def run_engine_task(engine_type: str, query: str):
             "engine": engine_type, "status": "finalizing",
             "message": "研究完成", "progress_pct": 100,
         })
+        console_log.console_log(
+            engine_type,
+            f"研究完成，报告 {len(final_report)} 字，引用 {len(citations)} 条",
+            level="success",
+            highlight=True,
+        )
         publish(EventType.ENGINE_RESULT, {
             "engine": engine_type, "final_report": final_report,
             "citations": citations,
@@ -148,7 +195,15 @@ def run_engine_task(engine_type: str, query: str):
 
     except Exception as exc:
         import traceback
+        from app.services import console_log
+
         logger.exception(f"{engine_type} engine error: {exc}")
+        console_log.console_log(
+            engine_type,
+            f"引擎出错中止：{exc}",
+            level="error",
+            highlight=True,
+        )
         publish(EventType.ENGINE_ERROR, {
             "engine": engine_type, "error": str(exc),
             "traceback": traceback.format_exc(),
@@ -180,9 +235,7 @@ def _run_review_research(query: str) -> Dict[str, Any]:
     )
 
     # 这里也是一种抽象，ReviewEngine当中所有的节点的事件，event_type全部都是engine_progress，
-    def progress_callback(data):
-        "回调函数，用以通过SSE机制，在前端展示进度"
-        publish(EventType.ENGINE_PROGRESS, {"engine": "review", **data})
+    progress_callback = _progress_callback("review")
 
     return run_research(query, config, llm_client, progress_callback)
 
@@ -221,8 +274,7 @@ def _run_competitor_research(query: str) -> Dict[str, Any]:
     else:
         search_agency = BochaMultimodalSearch(api_key=config.BOCHA_WEB_SEARCH_API_KEY)
 
-    def progress_callback(data):
-        publish(EventType.ENGINE_PROGRESS, {"engine": "competitor", **data})
+    progress_callback = _progress_callback("competitor")
 
     return run_research(query, config, llm_client, search_agency, progress_callback)
 
@@ -249,8 +301,7 @@ def _run_trend_research(query: str) -> Dict[str, Any]:
     )
     search_agency = TavilySearchWrapper(api_key=config.TAVILY_API_KEY)
 
-    def progress_callback(data):
-        publish(EventType.ENGINE_PROGRESS, {"engine": "trend", **data})
+    progress_callback = _progress_callback("trend")
 
     return run_research(query, config, llm_client, search_agency, progress_callback)
 

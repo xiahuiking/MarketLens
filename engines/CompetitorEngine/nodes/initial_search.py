@@ -53,6 +53,7 @@ class InitialSearchNode:
         search_query = out.search_query
         search_tool = out.search_tool
         logger.info(f"  - 搜索查询: {search_query}, 工具: {search_tool}")
+        self.ctx.log(f"开始处理段落 {idx + 1}/{total}：{para['title']}")
 
         search_results = execute_search_and_convert(self.ctx, out.model_dump(), search_query, search_tool)
 

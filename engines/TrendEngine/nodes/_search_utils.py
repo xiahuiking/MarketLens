@@ -19,6 +19,10 @@ def execute_search_and_convert(ctx: TrendContext, search_output: dict, search_qu
 
     logger.info("  - 执行权威信息搜索...")
     queries = build_authority_queries(search_query)
+    ctx.log(
+        f"权威信息检索「{search_query}」\n  · 扩展查询 {len(queries)} 条："
+        + "；".join(str(q) for q in queries[:4])
+    )
     seen_urls: set[str] = set()
 
     results: list[dict] = []
@@ -53,4 +57,18 @@ def execute_search_and_convert(ctx: TrendContext, search_output: dict, search_qu
         logger.info(msg)
     else:
         logger.info("  - 未找到搜索结果")
+
+    from engines.common.engine_console import summarize_results
+
+    lines = summarize_results(results, label="权威信息检索")
+    if results:
+        labels = [str(r.get("source_label") or "").strip() for r in results[:5]]
+        labels = [lb for lb in labels if lb]
+        if labels:
+            lines += f"\n  来源类型：{'、'.join(labels)}"
+    ctx.log(
+        lines,
+        level="info" if results else "warning",
+        highlight=bool(results),
+    )
     return results

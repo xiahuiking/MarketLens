@@ -4,6 +4,13 @@ import { useAppsStore } from '@/stores/apps'
 import { useSearchStore } from '@/stores/search'
 import { useForumStore } from '@/stores/forum'
 
+/** 把 agent 总结压成一行日志（完整内容留在 title 里悬停查看） */
+function summaryLine(summary: string, limit = 160): string {
+  const flat = (summary || '').replace(/\s+/g, ' ').trim()
+  if (flat.length <= limit) return flat
+  return flat.slice(0, limit) + '…'
+}
+
 export function useSSE() {
   const systemStore = useSystemStore()
   const appsStore = useAppsStore()
@@ -43,15 +50,45 @@ export function useSSE() {
           if (appName && line) {
             appsStore.appendConsoleLine(appName, line)
           }
+        } else if (eventType === 'console_log') {
+          // 结构化日志：时间戳 + 级别 + 来源，直接落到对应 Agent 的日志栏
+          const appName = eventData.app || 'report'
+          appsStore.appendStructuredLine(appName, eventData)
+        } else if (eventType === 'summary_ready') {
+          // 每个 Agent 的阶段总结：让用户看到「得出了什么结论」
+          const engine = eventData.source || 'review'
+          const summary = eventData.summary || ''
+          const round = eventData.type === 'reflection' ? '反思总结' : '首轮总结'
+          if (summary.trim()) {
+            appsStore.appendStructuredLine(engine, {
+              level: 'success',
+              source: engine,
+              text: `${round}：${summaryLine(summary)}`,
+              title: summary,
+            })
+          }
         } else if (eventType === 'engine_progress') {
           searchStore.handleEngineProgress(eventData)
-          appsStore.appendConsoleLine(eventData.engine, `[${eventData.engine}] ${eventData.message || ''}`)
+          appsStore.appendStructuredLine(eventData.engine, {
+            source: eventData.engine,
+            text: eventData.message || '处理中',
+          })
         } else if (eventType === 'engine_result') {
           searchStore.handleEngineResult(eventData)
-          appsStore.appendConsoleLine(eventData.engine, `[${eventData.engine}] 研究完成`)
+          appsStore.appendStructuredLine(eventData.engine, {
+            level: 'success',
+            source: eventData.engine,
+            text: '研究完成',
+            highlight: true,
+          })
         } else if (eventType === 'engine_error') {
           searchStore.handleEngineError(eventData)
-          appsStore.appendConsoleLine(eventData.engine, `[${eventData.engine}] 错误: ${eventData.error || '未知错误'}`)
+          appsStore.appendStructuredLine(eventData.engine, {
+            level: 'error',
+            source: eventData.engine,
+            text: `错误: ${eventData.error || '未知错误'}`,
+            highlight: true,
+          })
         } else if (eventType === 'forum_message') {
           forumStore.handleForumMessage(eventData)
         }

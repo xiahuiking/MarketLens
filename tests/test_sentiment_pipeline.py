@@ -106,6 +106,10 @@ class _FakeContext:
     def validate_date_format(self, date_str):
         return True
 
+    def log(self, text, **kwargs):
+        """节点会把细节推给前端日志栏；测试里忽略。"""
+        return None
+
     def execute_search(self, tool_name, query, **kwargs):
         self.captured = {"tool": tool_name, "query": query, **kwargs}
         return _FakeResponse()
@@ -344,6 +348,8 @@ class TestMetadataReachesSummaryPrompt:
             return queue.pop(0) if queue else DBResponse(
                 tool_name=tool_name, parameters={}, results=[], results_count=0
             )
+
+        ctx.log = lambda text, **kwargs: None
 
         def _structured_invoke(system_prompt, user_prompt, output_model, **kwargs):
             captured["messages"].append(user_prompt)

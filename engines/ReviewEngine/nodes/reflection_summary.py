@@ -60,6 +60,14 @@ class ReflectionSummaryNode:
         if "host_speech" in summary_input:
             message = format_host_speech_for_prompt(summary_input["host_speech"]) + "\n" + message
 
+        from app.services import console_log as console_log_service
+
+        console_log_service.console_log(
+            self.ctx.engine_name,
+            f"正在为「{para['title']}」撰写第 {count + 1}/{max_ref} 轮反思总结",
+            source=self.ctx.engine_name,
+        )
+
         try:
             out = self.ctx.llm_client.structured_invoke(
                 SYSTEM_PROMPT_REFLECTION_SUMMARY, message, ReflectionSummaryOutput,
@@ -68,6 +76,14 @@ class ReflectionSummaryNode:
         except Exception:
             logger.exception("结构化反思总结输出失败")
             summary = ""
+
+        if not (summary and summary.strip()):
+            console_log_service.console_log(
+                self.ctx.engine_name,
+                f"「{para['title']}」第 {count + 1} 轮反思总结为空",
+                level="warning",
+                source=self.ctx.engine_name,
+            )
 
         publish(EventType.SUMMARY_READY, {"source": self.ctx.engine_name, "summary": summary, "type": "reflection"})
 
