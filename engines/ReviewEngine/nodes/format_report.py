@@ -8,10 +8,8 @@ from loguru import logger
 
 from ..state import ReviewGraphState
 from ..prompts import SYSTEM_PROMPT_REPORT_FORMATTING
-from ..utils.text_processing import (
-    remove_reasoning_from_output,
-    clean_markdown_tags,
-)
+from engines.common.report_text import clean_markdown_report
+
 from ..context import ReviewContext
 
 
@@ -59,14 +57,14 @@ class FormatReportNode:
             self.ctx.progress_callback(data)
 
     def _parse_report(self, output: str) -> str:
-        """清洗 LLM 输出；为空时返回空串，由调用方决定兜底。"""
-        cleaned = remove_reasoning_from_output(output)
-        cleaned = clean_markdown_tags(cleaned)
-        if not cleaned.strip():
-            return ""
-        if not cleaned.strip().startswith("#"):
-            cleaned = "# 深度研究报告\n\n" + cleaned
-        return cleaned.strip()
+        """清洗 LLM 输出；为空时返回空串，由调用方决定兜底。
+
+        注意：这里**不能**用 ``remove_reasoning_from_output``——那个函数按
+        「第一个 ``{``/``[`` 之前全部丢弃」工作，会把含来源标注（``[媒体]``）的
+        Markdown 报告开头整段删掉（实测丢失 50%~80%）。见
+        ``engines/common/report_text.py``。
+        """
+        return clean_markdown_report(output)
 
     @staticmethod
     def _fallback_format(paragraphs_data: list, report_title: str = "深度研究报告") -> str:
