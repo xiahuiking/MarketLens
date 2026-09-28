@@ -23,8 +23,8 @@ CREATE TABLE IF NOT EXISTS product (
     platform VARCHAR(32) NOT NULL DEFAULT 'amazon',
     parent_asin VARCHAR(32) NOT NULL,
     title TEXT,
-    brand VARCHAR(255) DEFAULT NULL,
-    store VARCHAR(255) DEFAULT NULL,
+    brand TEXT DEFAULT NULL,
+    store TEXT DEFAULT NULL,
     price VARCHAR(64) DEFAULT NULL,
     main_category VARCHAR(255) DEFAULT NULL,
     average_rating FLOAT DEFAULT NULL,
@@ -41,7 +41,7 @@ CREATE TABLE IF NOT EXISTS review (
     platform VARCHAR(32) NOT NULL DEFAULT 'amazon',
     asin VARCHAR(32) DEFAULT NULL,
     parent_asin VARCHAR(32) NOT NULL,
-    user_id VARCHAR(64) DEFAULT NULL,
+    user_id VARCHAR(128) DEFAULT NULL,
     rating FLOAT DEFAULT NULL,
     title TEXT,
     content LONGTEXT,
@@ -54,6 +54,37 @@ CREATE TABLE IF NOT EXISTS review (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
 """
 
+# 历史遗留列宽：早期 DDL 把 brand/store 设成 VARCHAR(255)，而 Amazon 的 store
+# 字段有超长值（Electronics 导入直接报 1406 Data too long）。这里在启动时按需
+# 加宽，避免已建库的部署必须手工 ALTER。
+_LEGACY_WIDENINGS: tuple[tuple[str, str, str], ...] = (
+    ("product", "brand", "TEXT"),
+    ("product", "store", "TEXT"),
+    ("review", "user_id", "VARCHAR(128)"),
+)
+
+
+async def _widen_legacy_columns(conn) -> None:
+    """把历史遗留的窄列加宽到当前 DDL 的定义（幂等，已是宽列则跳过）。"""
+    for table, column, target_ddl in _LEGACY_WIDENINGS:
+        result = await conn.execute(
+            text(
+                "SELECT DATA_TYPE, CHARACTER_MAXIMUM_LENGTH FROM information_schema.COLUMNS "
+                "WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = :t AND COLUMN_NAME = :c"
+            ),
+            {"t": table, "c": column},
+        )
+        row = result.first()
+        if not row:
+            continue
+        data_type, max_len = (row[0] or "").lower(), row[1]
+        if data_type in {"text", "mediumtext", "longtext"}:
+            continue
+        if target_ddl.startswith("TEXT") or (max_len or 0) < 128:
+            await conn.execute(text(f"ALTER TABLE {table} MODIFY {column} {target_ddl}"))
+        elif target_ddl.startswith("VARCHAR") and (max_len or 0) < int(target_ddl.split("(")[1].rstrip(")")):
+            await conn.execute(text(f"ALTER TABLE {table} MODIFY {column} {target_ddl}"))
+
 
 async def init_ecommerce_tables() -> None:
     """创建电商表（幂等，可重复执行）。"""
@@ -63,6 +94,7 @@ async def init_ecommerce_tables() -> None:
     async with engine.begin() as conn:
         await conn.execute(text(PRODUCT_TABLE_DDL))
         await conn.execute(text(REVIEW_TABLE_DDL))
+        await _widen_legacy_columns(conn)
 
 
 if __name__ == "__main__":

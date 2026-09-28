@@ -81,6 +81,34 @@ def _norm_int(v) -> Optional[int]:
         return None
 
 
+# ── 列宽护栏 ────────────────────────────────────────────────────────────────
+#
+# Amazon 数据里存在超长字段：Electronics 的 store 有超过 255 字符的值，早期
+# product.brand/store 是 VARCHAR(255)，导入时直接抛
+# `1406 Data too long for column 'brand'`，整批 500 行连坐失败。
+# 表已按 schema.py 加宽（brand/store 为 TEXT），这里再兜一层截断，
+# 保证任何异常长值都不会让整批导入失败。
+
+_COLUMN_LIMITS = {
+    "platform": 32,
+    "asin": 32,
+    "parent_asin": 32,
+    "user_id": 128,
+    "price": 64,
+    "main_category": 255,
+    # TEXT 列，留出多字节余量
+    "brand": 20000,
+    "store": 20000,
+}
+
+
+def _clip(value: Optional[str], field: str) -> Optional[str]:
+    limit = _COLUMN_LIMITS.get(field)
+    if value is None or limit is None:
+        return value
+    return value[:limit] if len(value) > limit else value
+
+
 # ── 数据库连接 ───────────────────────────────────────────────────────────────
 
 def _connect() -> pymysql.Connection:
@@ -147,15 +175,15 @@ def import_meta(conn: pymysql.Connection, meta_path: Path, limit: Optional[int] 
             parent_asin = _safe_str(obj.get("parent_asin"))
             if not parent_asin:
                 continue
-            store = _safe_str(obj.get("store"))
+            store = _clip(_safe_str(obj.get("store")), "store")
             rows.append((
                 PLATFORM,
-                parent_asin,
+                _clip(parent_asin, "parent_asin"),
                 _safe_str(obj.get("title")),
                 store,  # Amazon meta 无独立 brand 字段，用 store 作为品牌近似
                 store,
-                _norm_price(obj.get("price")),
-                _safe_str(obj.get("main_category")),
+                _clip(_norm_price(obj.get("price")), "price"),
+                _clip(_safe_str(obj.get("main_category")), "main_category"),
                 _norm_float(obj.get("average_rating")),
                 _norm_int(obj.get("rating_number")) or 0,
             ))
@@ -181,9 +209,9 @@ def import_reviews(conn: pymysql.Connection, reviews_path: Path, limit: Optional
                 continue
             rows.append((
                 PLATFORM,
-                _safe_str(obj.get("asin")),
-                parent_asin,
-                _safe_str(obj.get("user_id")),
+                _clip(_safe_str(obj.get("asin")), "asin"),
+                _clip(parent_asin, "parent_asin"),
+                _clip(_safe_str(obj.get("user_id")), "user_id"),
                 _norm_float(obj.get("rating")),
                 _safe_str(obj.get("title")),
                 _safe_str(obj.get("text")),
