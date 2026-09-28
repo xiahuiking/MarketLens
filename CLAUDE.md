@@ -143,7 +143,13 @@ download_amazon.py → import_amazon.py → MySQL (product/review)
 
 - **实际默认数据库是 MySQL**，尽管 `app/config.py` 中 `DB_DIALECT` 的 `Field(default="postgresql")`。docker-compose 文件、`tools/ecommerce/schema.py` 以及导入脚本均假定 MySQL。请显式设置 `DB_DIALECT=mysql`，或依赖 `.env`/docker-compose 的配置。
 
-- **`LLMClient`**（`engines/common/llm_client.py`）是全项目唯一的 OpenAI 兼容 chat 封装，它会在用户 prompt 中注入"今天的实际时间"前缀。`structured_invoke()` 使用 LangChain 的 `with_structured_output`，对不支持 `tool_choice` 的推理模型提供 function-calling → json-mode 的降级回退。
+- **`LLMClient`**（`engines/common/llm_client.py`）是全项目唯一的 OpenAI 兼容 chat 封装，它会在用户 prompt 中注入"今天的实际时间"前缀。`structured_invoke()` 使用 LangChain 的 `with_structured_output`，对不支持 `tool_choice` 的推理模型提供 function-calling → json-mode 的降级回退；两个阶段解析失败时都会用 `json_repair` 抢救一次（模型常输出「字符串里带裸换行」的 JSON），抢救失败才抛错 —— 否则 `generate_structure` 会静默丢掉模型给出的 5 段结构、退化成默认大纲。
+
+- **Markdown 报告清洗必须用 `engines/common/report_text.py::clean_markdown_report`。** 三个引擎的 `format_report` 节点曾经把 Markdown 报告交给 `remove_reasoning_from_output()`，而那是给 JSON 用的提取器（**从第一个 `{`/`[` 开始截取**）；报告里一出现来源标注 `[媒体]` 就会被砍掉开头，实测单次丢失 50%~80% 正文（`logs/review.log`：9622 → 1839 字符）。回归测试见 `tests/test_report_markdown_cleaning.py`。
+
+- **论坛（forum）是跨进程污染的常见入口，三处护栏不要绕过。** ①`tests/conftest.py` 的 autouse 夹具把 `logs/forum.log` 与主持人 LLM 调用隔离到 tmp 目录（引擎 e2e 用例的 mock 摘要「## 测试段落」曾被写进真实日志，并被 `build_context` → `forumLogs` 读进每一章提示词）；②进入 ReportEngine 前论坛日志要过 `app/services/forum_service.py::sanitize_forum_log_text`（丢弃 SYSTEM/占位/过短/重复行并限长）；③`app/utils/forum_reader.py::format_host_speech_for_prompt` 会拦截占位发言、截断到 `HOST_SPEECH_MAX_CHARS`，并显式禁止模型「回应主持人」—— 主持人发言是论坛元讨论，原样注入会让正文变成方法论散文。
+
+- **报告章节的 `except` 顺序有约束。** `ChapterContentError` / `ChapterJsonParseError` / `ChapterValidationError` 都继承 `ValueError`，在 `GenerateChaptersNode.__call__` 中必须排在通用 `except (..., ValueError)` **之前**，否则「内容稀疏降级出报告」的兜底分支永远不会执行，单章失败会升级成整份报告失败。密度校验 `_ensure_content_density` 统计的是**递归展开后**的内容块数（LLM 偶尔把整章塞进一个 `callout`）。回归测试见 `tests/test_chapter_density_and_retry.py`。
 
 - **Token / 成本核算的埋点契约。** 新增 LLM 调用必须走 `LLMClient`，或像 `engines/ForumEngine/llm_host.py`（裸 OpenAI 客户端）那样显式调用 `usage.record_llm_call(...)`；绕过它 = 该调用在成本面板里不可见。归因靠 `app/services/cost_service.py`：`usage.set_active_run()` 做全局兜底，`usage.set_usage_context()` 做线程级覆盖（新线程不继承上下文，需显式设置），报告任务通过 `ReportTask.run_id` 关联。`structured_invoke()` 必须保留 `include_raw=True`，否则 `with_structured_output` 只返回解析后的对象，拿不到真实 token usage。价目表未命中的模型一律标为「价格未知」并计入 `unpriced_calls`，**不要**回退成 0。
 
