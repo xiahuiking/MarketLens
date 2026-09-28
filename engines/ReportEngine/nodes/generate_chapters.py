@@ -191,17 +191,17 @@ class GenerateChaptersNode(BaseNode):
                     chapter_payload = self.run(section, chap_ctx, run_dir, stream_callback=lambda d, m, s=section: self._emit(state, "chapter_chunk", {"chapterId": s.chapter_id, "title": s.title, "delta": d}))
                     success = True
                     break
-                except (AttributeError, TypeError, KeyError, IndexError, ValueError) as e:
-                    logger.warning(f"章节 {section.title} 结构错误 (第{attempt}次): {e}")
-                    self._emit(state, "chapter_status", {"chapterId": section.chapter_id, "title": section.title, "status": "retrying" if attempt < chapter_max_attempts else "error", "attempt": attempt, "error": str(e), "reason": "structure_error"})
-                    if attempt >= chapter_max_attempts:
-                        raise ChapterJsonParseError(f"{section.title} 在第{chapter_max_attempts}次尝试后仍失败: {e}") from e
+                # 注意 except 顺序：ChapterContentError / ChapterJsonParseError /
+                # ChapterValidationError 都继承自 ValueError，必须排在下面那个
+                # 通用 ValueError 分支**之前**，否则内容稀疏兜底与专门的日志分支
+                # 永远不会执行（历史 bug：第4章本该带警告降级，却让整份报告失败）。
                 except ChapterContentError as e:
                     candidate = getattr(e, "chapter_payload", None)
                     score = getattr(e, "body_characters", 0) or 0
                     if isinstance(candidate, dict) and score > best_score:
                         best_sparse, best_score = deepcopy(candidate), score
                     logger.warning(f"章节 {section.title} 内容稀疏 (第{attempt}次): {e}")
+                    self._emit(state, "chapter_status", {"chapterId": section.chapter_id, "title": section.title, "status": "retrying" if attempt < chapter_max_attempts else "error", "attempt": attempt, "error": str(e), "reason": "content_sparse"})
                     if attempt >= chapter_max_attempts and attempt >= self._SPARSE_MIN_ATTEMPTS and best_sparse:
                         chapter_payload = _finalize_sparse(best_sparse)
                         use_fallback = True
@@ -211,8 +211,14 @@ class GenerateChaptersNode(BaseNode):
                         raise
                 except (ChapterJsonParseError, ChapterValidationError) as e:
                     logger.warning(f"章节 {section.title} JSON/校验错误 (第{attempt}次): {e}")
+                    self._emit(state, "chapter_status", {"chapterId": section.chapter_id, "title": section.title, "status": "retrying" if attempt < chapter_max_attempts else "error", "attempt": attempt, "error": str(e), "reason": "structure_error"})
                     if attempt >= chapter_max_attempts:
                         raise
+                except (AttributeError, TypeError, KeyError, IndexError, ValueError) as e:
+                    logger.warning(f"章节 {section.title} 结构错误 (第{attempt}次): {e}")
+                    self._emit(state, "chapter_status", {"chapterId": section.chapter_id, "title": section.title, "status": "retrying" if attempt < chapter_max_attempts else "error", "attempt": attempt, "error": str(e), "reason": "structure_error"})
+                    if attempt >= chapter_max_attempts:
+                        raise ChapterJsonParseError(f"{section.title} 在第{chapter_max_attempts}次尝试后仍失败: {e}") from e
                 except Exception as e:
                     if not _is_content_safety_error(e):
                         raise
@@ -1133,13 +1139,10 @@ class GenerateChaptersNode(BaseNode):
                 non_heading_blocks=0,
             )
 
-        non_heading_blocks = [
-            block
-            for block in blocks
-            if isinstance(block, dict)
-            and block.get("type") not in {"heading", "divider", "toc"}
-        ]
-        valid_block_count = len(non_heading_blocks)
+        # 只数顶层 block 会把「整章内容被 LLM 包进一个 callout」误判成正文稀疏
+        # （实测第4章：顶层 2 个块、嵌套 35 个块、5271 字，仍被判"有效区块 1 个"
+        # 并连续失败 3 次）。这里改为递归统计真正承载内容的块。
+        valid_block_count = self._count_content_blocks(blocks)
         body_characters = self._count_body_characters(blocks)
         narrative_characters = self._count_narrative_characters(blocks)
 
@@ -1155,6 +1158,39 @@ class GenerateChaptersNode(BaseNode):
                 narrative_characters=narrative_characters,
                 non_heading_blocks=valid_block_count,
             )
+
+    # 纯容器块：本身不承载内容，内容都在 blocks 里
+    _CONTAINER_BLOCK_TYPES = {"callout", "blockquote", "engineQuote"}
+
+    def _count_content_blocks(self, blocks: Any) -> int:
+        """递归统计承载正文的区块数（用于密度校验）。
+
+        与"只数顶层非 heading 块"相比，这里会下钻容器块：LLM 偶尔把整章内容
+        塞进单个 ``callout``，顶层就只剩 1 个有效块，旧逻辑会误判为稀疏并连续
+        重试直到整份报告失败。容器有子块时按子块计数，没有子块时算 1 块。
+        """
+        if not isinstance(blocks, list):
+            return 0
+
+        count = 0
+        for block in blocks:
+            if not isinstance(block, dict):
+                if isinstance(block, str) and block.strip():
+                    count += 1
+                continue
+            if block.get("type") in {"heading", "divider", "toc"}:
+                continue
+
+            nested = block.get("blocks")
+            is_container = (
+                block.get("type") in self._CONTAINER_BLOCK_TYPES
+                or (isinstance(nested, list) and bool(nested))
+            )
+            if is_container and isinstance(nested, list) and nested:
+                count += self._count_content_blocks(nested)
+            else:
+                count += 1
+        return count
 
     def _count_body_characters(self, blocks: Any) -> int:
         """
