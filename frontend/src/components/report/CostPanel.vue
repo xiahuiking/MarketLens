@@ -237,6 +237,9 @@ function startPolling() {
   pollTimer = setInterval(refresh, 5000)
 }
 
+// 供 CostModal（顶部「成本预览」弹窗）手动触发刷新
+defineExpose({ refresh })
+
 onMounted(() => {
   loadPrices()
   startPolling()
