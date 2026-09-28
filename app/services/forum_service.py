@@ -43,6 +43,23 @@ def _on_forum_message(event_type: str, data: Dict[str, Any]):
     if len(_forum_messages) > MAX_FORUM_MESSAGES:
         _forum_messages[:] = _forum_messages[-MAX_FORUM_MESSAGES:]
 
+    # 同步一份到前端日志栏：Agent 发言进各自引擎的日志，主持人发言单独一条
+    try:
+        from app.services import console_log
+
+        content = msg['content']
+        is_host = msg['type'] == 'host'
+        console_log.console_log(
+            'forum' if is_host else (msg['source'] or 'review'),
+            f"[{sender}] {content}",
+            level='success' if is_host else 'info',
+            source='forum' if is_host else (msg['source'] or 'review'),
+            highlight=is_host,
+            title=content,
+        )
+    except Exception:
+        logger.exception("ForumEngine: 写入前端控制台日志失败")
+
 
 def init_forum_log():
     """Initialize forum.log with a header line and subscribe to FORUM_MESSAGE events."""
@@ -94,6 +111,78 @@ def get_forum_log() -> Dict[str, Any]:
         'parsed_messages': list(_forum_messages),
         'total_lines': len(_forum_messages),
     }
+
+
+# ── 下游输入净化 ────────────────────────────────────────────────────────────
+#
+# ReportEngine 会把 logs/forum.log 原文塞进提示词。该文件一旦混入测试用例的
+# 占位发言（tests/test_*_engine_e2e.py 的「## 测试段落\n这是初始总结。」）或被
+# 重复写坏的发言，报告就会变成「回应主持人 / 证据等级」的方法论散文。这里做
+# 输入侧净化：只保留合法的 Agent/主持人发言，丢弃占位、过短与重复内容。
+
+_FORUM_LINE_RE = re.compile(r"^\[(\d{2}:\d{2}:\d{2})\]\s*\[([A-Z]+)\]\s*(.*)$")
+_FORUM_KEEP_SOURCES = {"REVIEW", "COMPETITOR", "TREND", "HOST"}
+_FORUM_PLACEHOLDER_MARKERS = (
+    "测试段落",
+    "这是初始总结",
+    "这是反思后的总结",
+    "占位",
+    "todo",
+    "lorem ipsum",
+)
+_FORUM_MIN_CONTENT_CHARS = 40
+_FORUM_DEDUP_PREFIX_CHARS = 120
+_FORUM_MAX_CHARS = 12000
+
+
+def sanitize_forum_log_text(text: str, max_chars: int = _FORUM_MAX_CHARS) -> str:
+    """净化论坛日志原文，供 ReportEngine 等下游消费。
+
+    - 仅保留 ``[时间] [REVIEW|COMPETITOR|TREND|HOST]`` 形式的发言；
+    - 丢弃 SYSTEM 行、占位/测试文本与过短内容；
+    - 按内容前 N 字去重（论坛常出现同一条发言被反复写入）；
+    - 结果按 ``max_chars`` 截尾，避免超长日志挤占提示词预算。
+    """
+    if not text:
+        return ""
+
+    kept: List[str] = []
+    seen: set[str] = set()
+
+    for raw_line in text.splitlines():
+        line = raw_line.strip()
+        if not line:
+            continue
+        match = _FORUM_LINE_RE.match(line)
+        if not match:
+            continue
+        _ts, source, content = match.groups()
+        if source not in _FORUM_KEEP_SOURCES:
+            continue
+
+        plain = content.replace("\\n", " ").strip()
+        if len(plain) < _FORUM_MIN_CONTENT_CHARS:
+            continue
+        lowered = plain.lower()
+        if any(marker in lowered for marker in _FORUM_PLACEHOLDER_MARKERS):
+            continue
+
+        fingerprint = plain[:_FORUM_DEDUP_PREFIX_CHARS]
+        if fingerprint in seen:
+            continue
+        seen.add(fingerprint)
+        kept.append(line)
+
+    if not kept:
+        return ""
+
+    joined = "\n".join(kept)
+    if len(joined) <= max_chars:
+        return joined
+
+    tail = joined[-max_chars:]
+    newline = tail.find("\n")
+    return tail[newline + 1:] if newline != -1 else tail
 
 
 def parse_forum_log_line(line: str) -> Optional[Dict[str, Any]]:

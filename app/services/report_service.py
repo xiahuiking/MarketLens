@@ -192,7 +192,12 @@ def check_engines_ready() -> dict[str, Any]:
 
 
 def _load_input_files(file_paths: dict[str, str]) -> dict[str, Any]:
-    """Load engine reports and forum log content."""
+    """Load engine reports and forum log content.
+
+    forum.log 会被净化后再交给 ReportEngine：测试占位发言、SYSTEM 行与重复
+    主持人发言都属于噪声，直接喂给报告提示词会把报告带成方法论散文
+    （见 forum_service.sanitize_forum_log_text）。
+    """
     content = {'reports': [], 'forum_logs': ''}
     for engine in ('trend', 'competitor', 'review'):
         path = file_paths.get(engine)
@@ -202,7 +207,10 @@ def _load_input_files(file_paths: dict[str, str]) -> dict[str, Any]:
             content['reports'].append("")
     try:
         if 'forum' in file_paths:
-            content['forum_logs'] = open(file_paths['forum'], encoding='utf-8').read()
+            raw_forum = open(file_paths['forum'], encoding='utf-8').read()
+            from app.services.forum_service import sanitize_forum_log_text
+
+            content['forum_logs'] = sanitize_forum_log_text(raw_forum)
     except Exception:
         pass
     return content
