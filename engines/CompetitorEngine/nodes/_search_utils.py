@@ -12,6 +12,7 @@ def execute_search_and_convert(ctx: CompetitorContext, search_output: dict, sear
         kwargs["max_results"] = 10
 
     logger.info("  - 执行网络搜索...")
+    ctx.log(f"检索「{search_query}」（工具 {search_tool}）")
     response = ctx.execute_search(search_tool, search_query, **kwargs)
 
     results: list[dict] = []
@@ -33,4 +34,11 @@ def execute_search_and_convert(ctx: CompetitorContext, search_output: dict, sear
     else:
         logger.info("  - 未找到搜索结果")
 
+    from engines.common.engine_console import summarize_results
+
+    ctx.log(
+        summarize_results(results, label="网络检索"),
+        level="info" if results else "warning",
+        highlight=bool(results),
+    )
     return results

@@ -8,6 +8,7 @@ class EventType(StrEnum):
     ENGINE_PROGRESS = "engine_progress"
     FORUM_MESSAGE = "forum_message"
     CONSOLE_OUTPUT = "console_output"
+    CONSOLE_LOG = "console_log"
     ENGINE_ERROR = "engine_error"
     ENGINE_RESULT = "engine_result"
     COST_UPDATE = "cost_update"

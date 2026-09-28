@@ -24,7 +24,9 @@ _subscribers: list[Queue] = []
 _subscribers_lock = threading.Lock()
 
 # Ring buffer of recent events for replay on reconnect
-REPLAY_EVENT_TYPES = {"engine_result", "engine_progress"}
+# 说明：console_log 不进回放缓冲 —— 前端各 Agent 的日志行是叠加展示的，
+# 重连时重放会造成重复刷屏；agent 总结（summary_ready）进回放，方便刷新后补齐。
+REPLAY_EVENT_TYPES = {"engine_result", "engine_progress", "summary_ready"}
 _replay_buffer: deque = deque(maxlen=300)
 _replay_lock = threading.Lock()
 

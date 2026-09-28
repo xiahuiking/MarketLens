@@ -55,6 +55,15 @@ class InitialSummaryNode:
         if "host_speech" in summary_input:
             message = format_host_speech_for_prompt(summary_input["host_speech"]) + "\n" + message
 
+        from app.services import console_log as console_log_service
+
+        logger.info("  - 初始总结开始生成...")
+        console_log_service.console_log(
+            self.ctx.engine_name,
+            f"正在为「{para['title']}」撰写首轮总结（检索到 {len(search_results)} 条素材）",
+            source=self.ctx.engine_name,
+        )
+
         try:
             out = self.ctx.llm_client.structured_invoke(
                 SYSTEM_PROMPT_FIRST_SUMMARY, message, InitialSummaryOutput,
@@ -63,6 +72,21 @@ class InitialSummaryNode:
         except Exception:
             logger.exception("结构化总结输出失败")
             summary = ""
+
+        if summary and summary.strip():
+            console_log_service.console_log(
+                self.ctx.engine_name,
+                f"「{para['title']}」首轮总结完成（{len(summary)} 字）",
+                level="success",
+                source=self.ctx.engine_name,
+            )
+        else:
+            console_log_service.console_log(
+                self.ctx.engine_name,
+                f"「{para['title']}」首轮总结为空，请检查该段检索素材或模型输出",
+                level="warning",
+                source=self.ctx.engine_name,
+            )
 
         publish(EventType.SUMMARY_READY, {"source": self.ctx.engine_name, "summary": summary, "type": "initial"})
 

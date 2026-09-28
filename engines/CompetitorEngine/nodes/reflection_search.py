@@ -44,6 +44,7 @@ class ReflectionSearchNode:
         search_query = out.search_query
         search_tool = out.search_tool
         logger.info(f"    反思查询: {search_query}, 工具: {search_tool}")
+        self.ctx.log(f"段落 {idx + 1} 第 {count + 1}/{max_ref} 轮反思检索...")
 
         search_results = execute_search_and_convert(self.ctx, out.model_dump(), search_query, search_tool)
 

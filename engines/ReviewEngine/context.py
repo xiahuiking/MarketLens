@@ -42,6 +42,14 @@ class ReviewContext:
         if self.sentiment_analyzer is None:
             self.sentiment_analyzer = multilingual_sentiment_analyzer
 
+    # ── Console logging（前端日志栏） ─────────────────────────────────
+
+    def log(self, text: str, *, level: str = "info", highlight: bool = False) -> None:
+        """把一个节点级细节推给前端控制台（仅影响展示，失败静默）。"""
+        from engines.common.engine_console import log_event
+
+        log_event(self, text, level=level, highlight=highlight)
+
     # ── Search execution ──────────────────────────────────────────────
 
     def execute_search(self, tool_name: str, query: str, **kwargs) -> DBResponse:

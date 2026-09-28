@@ -104,6 +104,7 @@ def execute_search_and_convert(
         kwargs["limit"] = 50
 
     logger.info("  - 执行数据库查询...")
+    ctx.log(f"检索「{search_query}」（工具 {search_tool}）")
     response = ctx.execute_search(search_tool, search_query, **kwargs)
 
     results: list[dict] = []
@@ -135,4 +136,13 @@ def execute_search_and_convert(
         logger.info(msg)
     else:
         logger.info("  - 未找到搜索结果")
+
+    from engines.common.engine_console import describe_metadata, summarize_results
+
+    detail = describe_metadata(metadata)
+    ctx.log(
+        summarize_results(results, label="数据库检索") + (f"\n（{detail}）" if detail else ""),
+        level="info" if results else "warning",
+        highlight=bool(results),
+    )
     return results, metadata

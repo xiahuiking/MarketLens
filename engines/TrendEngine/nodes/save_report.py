@@ -22,6 +22,11 @@ class SaveReportNode:
         with open(fp, "w", encoding="utf-8") as f:
             f.write(report)
         logger.info(f"报告已保存到: {fp}")
+        self.ctx.log(
+            f"报告已保存：{os.path.basename(fp)}（{len(report)} 字）",
+            level="success",
+            highlight=True,
+        )
         if self.ctx.config.SAVE_INTERMEDIATE_STATES:
             ds = _rebuild(report, query, state)
             ds.save_to_file(os.path.join(self.ctx.config.OUTPUT_DIR, f"state_{safe}_{ts}.json"))

@@ -23,6 +23,14 @@ class CompetitorContext:
     engine_name: str = "competitor"
     progress_callback: Optional[Callable] = None
 
+    # ── Console logging（前端日志栏） ─────────────────────────────────
+
+    def log(self, text: str, *, level: str = "info", highlight: bool = False) -> None:
+        """把一个节点级细节推给前端控制台（仅影响展示，失败静默）。"""
+        from engines.common.engine_console import log_event
+
+        log_event(self, text, level=level, highlight=highlight)
+
     def execute_search(self, tool_name: str, query: str, **kwargs) -> Any:
         """Dispatch to the right search agency method (polymorphic)."""
         logger.info(f"  → 执行搜索工具: {tool_name}")
