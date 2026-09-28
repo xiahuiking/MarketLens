@@ -7,6 +7,7 @@ Shared OpenAI-compatible LLM client for all engines.
 """
 
 import os
+import re
 import sys
 import time
 from datetime import datetime
@@ -49,6 +50,51 @@ def _unpack_structured(raw: Any) -> tuple[Any, Any, Any]:
     if isinstance(raw, dict) and "parsed" in raw:
         return raw.get("parsed"), raw.get("raw"), raw.get("parsing_error")
     return raw, None, None
+
+
+def _message_text(message: Any) -> str:
+    """取出 AIMessage 的原始文本（兼容 content 为 block 列表的实现）。"""
+    if message is None:
+        return ""
+    content = getattr(message, "content", None)
+    if isinstance(content, str):
+        return content
+    if isinstance(content, list):
+        parts: list[str] = []
+        for item in content:
+            if isinstance(item, str):
+                parts.append(item)
+            elif isinstance(item, dict) and isinstance(item.get("text"), str):
+                parts.append(item["text"])
+        return "".join(parts)
+    return ""
+
+
+def _repair_json_payload(text: str) -> Any:
+    """用 json_repair 抢救 LangChain 解析不了的 JSON，失败返回 None。
+
+    真实案例：json_mode 下模型把报告结构 JSON 输出成**字符串里带裸换行**的形式，
+    ``json.loads`` 判 "Invalid control character"，JsonOutputParser 随即抛
+    OUTPUT_PARSING_FAILURE，导致口碑引擎那份 5 段结构被整段丢弃、静默降级成
+    2 个默认段落。这里先剥 ``` 围栏，再交给 json_repair 修，修不出来才放弃。
+    """
+    if not text or not text.strip():
+        return None
+
+    candidate = text.strip()
+    if candidate.startswith("```"):
+        candidate = re.sub(r"^```[a-zA-Z0-9_-]*[ \t]*\r?\n?", "", candidate)
+        candidate = re.sub(r"\r?\n?[ \t]*```[ \t]*$", "", candidate).strip()
+
+    try:
+        from json_repair import repair_json
+    except ImportError:  # pragma: no cover - 可选依赖
+        return None
+
+    try:
+        return repair_json(candidate, return_objects=True)
+    except Exception:
+        return None
 
 
 def _langchain_usage(message: Any) -> Optional[dict[str, int]]:
@@ -363,6 +409,21 @@ class LLMClient:
                 ok=True,
             )
             if parsed is None:
+                # LangChain 的 JsonOutputParser 对「字符串里带裸换行」这类不合规 JSON
+                # 会直接判失败；此时用 json_repair 抢救，避免整份结构被丢弃后静默
+                # 降级成默认段落（真实案例：5 段 → 2 段）。
+                repaired = _repair_json_payload(_message_text(raw_message))
+                if repaired is not None:
+                    try:
+                        recovered = output_model.model_validate(repaired)
+                    except Exception:
+                        recovered = None
+                    if recovered is not None:
+                        logger.warning(
+                            f"[structured_invoke] LangChain 解析失败已由 json_repair 抢救"
+                            f"（method={method}）：{parse_error}"
+                        )
+                        return recovered
                 raise ValueError(f"结构化输出解析失败: {parse_error}")
             return parsed
 
