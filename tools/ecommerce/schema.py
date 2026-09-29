@@ -50,7 +50,9 @@ CREATE TABLE IF NOT EXISTS review (
     review_time BIGINT DEFAULT NULL,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     KEY idx_platform_parent_asin (platform, parent_asin),
-    KEY idx_review_time (review_time)
+    KEY idx_review_time (review_time),
+    KEY idx_parent_review_time (parent_asin, review_time),
+    KEY idx_parent_rating_helpful (parent_asin, rating, helpful_vote)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
 """
 
@@ -86,6 +88,55 @@ async def _widen_legacy_columns(conn) -> None:
             await conn.execute(text(f"ALTER TABLE {table} MODIFY {column} {target_ddl}"))
 
 
+# 评论查询所需的索引（幂等补齐，见 _ensure_review_indexes）。
+#
+# 为什么需要：所有评论查询都按 ``parent_asin`` 过滤，而原有的
+# ``idx_platform_parent_asin (platform, parent_asin)`` 最左列是 platform ——
+# 该列只有 'amazon' 一个取值（cardinality = 1），全库没有任何查询按 platform
+# 过滤，因此这个索引对 ``WHERE parent_asin IN (...)`` 完全不可用，390 万行的
+# review 表只能全表扫描（实测 `ORDER BY review_time DESC LIMIT 300` 单条 32.2s，
+# 建索引后 0.03s；EXPLAIN 由 `Table scan, cost=498486` 变为 index range scan）。
+#
+# 只建两个索引即可覆盖全部六种查询形状（``(parent_asin)`` 与
+# ``(parent_asin, rating)`` 分别是它们的前缀，另建属冗余）：
+#
+#   idx_parent_review_time (parent_asin, review_time)
+#     - WHERE parent_asin IN (...) ORDER BY review_time DESC LIMIT n
+#     - WHERE parent_asin IN (...) AND review_time >= ? AND review_time < ?
+#     - SELECT MIN/MAX(review_time) WHERE parent_asin IN (...)
+#     - WHERE parent_asin = ? （前缀）
+#   idx_parent_rating_helpful (parent_asin, rating, helpful_vote)
+#     - WHERE parent_asin IN (...) AND rating <= 2
+#       ORDER BY helpful_vote DESC, review_time DESC LIMIT n
+#     - WHERE parent_asin IN (...) GROUP BY rating （前缀）
+_REVIEW_INDEXES: tuple[tuple[str, str], ...] = (
+    ("idx_parent_review_time", "(parent_asin, review_time)"),
+    ("idx_parent_rating_helpful", "(parent_asin, rating, helpful_vote)"),
+)
+
+
+async def _ensure_review_indexes(conn) -> None:
+    """按需补齐 _REVIEW_INDEXES（幂等：已存在则跳过）。
+
+    MySQL 不支持 ``CREATE INDEX IF NOT EXISTS``，因此先查
+    information_schema.STATISTICS 再决定是否 ALTER。
+    MySQL 8+ 加二级索引默认走 ONLINE DDL（INPLACE / LOCK=NONE），
+    大表上不会阻塞导入与查询；首次迁移耗时与表规模成正比。
+    """
+    result = await conn.execute(
+        text(
+            "SELECT DISTINCT INDEX_NAME FROM information_schema.STATISTICS "
+            "WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = :t"
+        ),
+        {"t": REVIEW_TABLE},
+    )
+    existing = {row[0] for row in result}
+    for name, columns in _REVIEW_INDEXES:
+        if name in existing:
+            continue
+        await conn.execute(text(f"ALTER TABLE {REVIEW_TABLE} ADD INDEX {name} {columns}"))
+
+
 async def init_ecommerce_tables() -> None:
     """创建电商表（幂等，可重复执行）。"""
     from engines.ReviewEngine.utils.db import get_async_engine
@@ -95,6 +146,7 @@ async def init_ecommerce_tables() -> None:
         await conn.execute(text(PRODUCT_TABLE_DDL))
         await conn.execute(text(REVIEW_TABLE_DDL))
         await _widen_legacy_columns(conn)
+        await _ensure_review_indexes(conn)
 
 
 if __name__ == "__main__":
