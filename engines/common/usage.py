@@ -363,7 +363,12 @@ def _usage_dir() -> Path:
 
 
 def _summary_dir() -> Path:
-    return _ROOT / _SUMMARY_DIR_NAME
+    settings = _get_settings()
+    raw = getattr(settings, "COST_SUMMARY_DIR", None) or _SUMMARY_DIR_NAME
+    path = Path(str(raw)).expanduser()
+    if not path.is_absolute():
+        path = _ROOT / path
+    return path
 
 
 def _persist(record: dict[str, Any]) -> None:

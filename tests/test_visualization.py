@@ -134,6 +134,18 @@ class TestChartBuilder:
 
 
 class TestVisualizationProvider:
+    @pytest.fixture(autouse=True)
+    def _no_model_snapshot(self, monkeypatch):
+        """隔离 _sentiment_from_review_state 对真实 data/report/review/state_*.json 的读取。
+
+        这些测试用 FakeDB 验证「无模型快照时回退到星级代理」的行为，但该方法会 glob
+        仓库里上次真实运行遗留的 state 快照，导致 sentiment_distribution 串味、测试非
+        确定性地失败。这里把它钉死为空快照，使测试只测本类的数据聚合逻辑。
+        """
+        monkeypatch.setattr(
+            VisualizationProvider, "_sentiment_from_review_state", lambda self, query: {}
+        )
+
     def test_collect_empty_db_is_graceful(self):
         provider = VisualizationProvider(db=FakeDB())
         data = provider.collect("headphone")

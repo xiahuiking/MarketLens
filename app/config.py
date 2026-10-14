@@ -129,7 +129,8 @@ class Settings(BaseSettings):
     USD_TO_CNY_RATE: float = Field(7.2, description="美元兑人民币汇率（价目表含 USD 单价时用于折算）")
     COST_ESTIMATE_TOKENS: bool = Field(True, description="网关未返回 usage 时，是否按字符数估算 token 并标记为估算值")
     COST_USAGE_DIR: str = Field("logs/usage", description="LLM 调用明细 JSONL 落盘目录（每个 run 一个文件）")
-    
+    COST_SUMMARY_DIR: str = Field("data/usage", description="LLM 用量聚合快照 JSON 落盘目录")
+
     # 只有配置了这个属性，才能够自动加载.env文件
     model_config = ConfigDict(
         env_file=ENV_FILE,
@@ -169,7 +170,7 @@ def reload_settings() -> Settings:
         'KEYWORD_OPTIMIZER_API_KEY', 'KEYWORD_OPTIMIZER_BASE_URL', 'KEYWORD_OPTIMIZER_MODEL_NAME',
         'TAVILY_API_KEY', 'SEARCH_TOOL_TYPE', 'BOCHA_WEB_SEARCH_API_KEY', 'ANSPIRE_API_KEY',
         'COST_TRACKING_ENABLED', 'MODEL_PRICES_PATH', 'COST_DISPLAY_CURRENCY',
-        'USD_TO_CNY_RATE', 'COST_ESTIMATE_TOKENS', 'COST_USAGE_DIR',
+        'USD_TO_CNY_RATE', 'COST_ESTIMATE_TOKENS', 'COST_USAGE_DIR', 'COST_SUMMARY_DIR',
     ]
     for k in _keys_to_clear:
         os.environ.pop(k, None)

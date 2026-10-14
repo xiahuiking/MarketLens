@@ -16,6 +16,13 @@ from app.services.event_types import EventType
 _latest_host_speech: Optional[str] = None
 _cache_lock = threading.Lock()
 
+# host 回灌开关 + 发言版本号 + 读取 trace。
+# 评测系统（evals/）用它们做 factor separation：host=off 时引擎输出彼此独立，
+# `V` 才是干净的集合函数；版本号 trace 让「哪个节点读到了哪一版 host 发言」可观测。
+_host_feedback_enabled: bool = True
+_host_speech_version: int = 0
+_host_trace: list = []
+
 # 主持人发言注入段落提示词时的护栏（见 format_host_speech_for_prompt）
 HOST_SPEECH_MAX_CHARS = 1200
 _HOST_SPEECH_PLACEHOLDER_MARKERS = (
@@ -28,12 +35,13 @@ _HOST_SPEECH_PLACEHOLDER_MARKERS = (
 
 def _on_forum_message(event_type: str, data: dict):
     """EventBus subscriber: cache latest HOST speech in memory."""
-    global _latest_host_speech
+    global _latest_host_speech, _host_speech_version
     if event_type == EventType.FORUM_MESSAGE and data.get("type") == "host":
         content = data.get("content", "")
         if content:
             with _cache_lock:
                 _latest_host_speech = content
+                _host_speech_version += 1
 
 
 def init_forum_reader():
@@ -59,10 +67,60 @@ def get_latest_host_speech(log_dir: str = "logs") -> Optional[str]:
         log_dir: 日志目录路径（保留参数兼容性，当前不再使用）
 
     Returns:
-        最新的HOST发言内容，如果没有则返回None
+        最新的HOST发言内容，如果没有则返回None。
+        当 host 回灌被关闭（set_host_feedback_enabled(False)）时恒返回 None。
     """
     with _cache_lock:
+        if not _host_feedback_enabled:
+            return None
         return _latest_host_speech
+
+
+def set_host_feedback_enabled(enabled: bool) -> None:
+    """开/关 host 发言回灌到引擎段落提示词。评测系统子集族实验固定关闭它。"""
+    global _host_feedback_enabled
+    with _cache_lock:
+        _host_feedback_enabled = enabled
+
+
+def get_host_feedback_enabled() -> bool:
+    with _cache_lock:
+        return _host_feedback_enabled
+
+
+def get_latest_host_speech_with_version() -> Optional[tuple]:
+    """返回 (speech, version)；回灌关闭或暂无发言时返回 None。"""
+    with _cache_lock:
+        if not _host_feedback_enabled or _latest_host_speech is None:
+            return None
+        return (_latest_host_speech, _host_speech_version)
+
+
+def read_host_speech_for_node(node_name: str) -> Optional[tuple]:
+    """
+    引擎 summary 节点专用入口：读取最新 host 发言并记录 (node, host_version) trace。
+
+    返回 (speech, version) 或 None。它同时封装了回灌开关与版本 trace，取代原先
+    直接调用 get_latest_host_speech() 的 6 处调用点。
+    """
+    result = get_latest_host_speech_with_version()
+    if result is not None:
+        with _cache_lock:
+            _host_trace.append({"node": node_name, "host_version": result[1]})
+    return result
+
+
+def get_host_trace() -> list:
+    """返回 host 发言读取 trace：[{"node": ..., "host_version": N}, ...]。"""
+    with _cache_lock:
+        return list(_host_trace)
+
+
+def reset_host_trace() -> None:
+    """清空读取 trace（版本号单调递增，不在此重置）。"""
+    global _host_trace
+    with _cache_lock:
+        _host_trace = []
 
 
 def format_host_speech_for_prompt(host_speech: str) -> str:

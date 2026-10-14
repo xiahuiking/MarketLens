@@ -9,7 +9,7 @@ from loguru import logger
 
 from app.services.event_bus import publish
 from app.services.event_types import EventType
-from app.utils.forum_reader import get_latest_host_speech, format_host_speech_for_prompt
+from app.utils.forum_reader import read_host_speech_for_node, format_host_speech_for_prompt
 from engines.common.structured_output import ReflectionSummaryOutput
 from ..state import ReviewGraphState
 from ..prompts import SYSTEM_PROMPT_REFLECTION_SUMMARY
@@ -50,9 +50,9 @@ class ReflectionSummaryNode:
             summary_input["search_metadata"] = search_metadata
 
         try:
-            host_speech = get_latest_host_speech()
+            host_speech = read_host_speech_for_node(f"{self.ctx.engine_name}:reflection_summary")
             if host_speech:
-                summary_input["host_speech"] = host_speech
+                summary_input["host_speech"] = host_speech[0]
         except Exception:
             pass
 

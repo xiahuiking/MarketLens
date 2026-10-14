@@ -1,0 +1,33 @@
+fixture: smoke
+items:
+  - id: smoke-s1-001
+    stratum: S1
+    query: "测试无线耳机"
+    entity: { type: product, asin: TEST001 }
+    required_findings:
+      - id: f1
+        statement: "平均评分落在 4.0 至 4.4 之间"
+        channel_policy: only-review
+        verify: { kind: db_query, sql: "SELECT AVG(rating) FROM review WHERE parent_asin='TEST001'", tolerance: 0.2 }
+    conflicts: []
+    expect: report
+
+  - id: smoke-s3-001
+    stratum: S3
+    query: "测试智能手表"
+    entity: { type: product, asin: TEST002 }
+    required_findings:
+      - id: f1
+        statement: "平均评分落在 4.0 至 4.4 之间"
+        channel_policy: only-review
+        verify: { kind: db_query, sql: "SELECT AVG(rating) FROM review WHERE parent_asin='TEST002'", tolerance: 0.2 }
+      - id: f2
+        statement: "主流竞品价格区间为 50 至 90 美元"
+        channel_policy: only-competitor
+        verify: { kind: url_set, urls: ["https://example.com/compare"], must_contain: ["$"] }
+      - id: f3
+        statement: "该品类近一年搜索热度上升"
+        channel_policy: only-trend
+        verify: { kind: url_set, urls: ["https://example.com/trends"], must_contain: [] }
+    conflicts: []
+    expect: report

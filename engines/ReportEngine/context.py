@@ -13,8 +13,8 @@ from .utils.config import Settings
 class FileCountBaseline:
     """File count baseline manager for checking new engine reports."""
     import os, json
-    def __init__(self):
-        self.baseline_file = 'logs/report_baseline.json'
+    def __init__(self, baseline_file: str = 'logs/report_baseline.json'):
+        self.baseline_file = baseline_file
         self.baseline_data = self._load()
     def _load(self) -> dict:
         if self.os.path.exists(self.baseline_file):
@@ -60,4 +60,5 @@ class ReportContext:
         if self.renderer is None:
             self.renderer = HTMLRenderer()
         if self.file_baseline is None:
-            self.file_baseline = FileCountBaseline()
+            baseline_file = getattr(self.config, "REPORT_BASELINE_FILE", 'logs/report_baseline.json')
+            self.file_baseline = FileCountBaseline(baseline_file)

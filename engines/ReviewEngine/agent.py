@@ -24,15 +24,23 @@ def run_research(
     llm_client: LLMClient,
     progress_callback: Optional[Callable] = None,
     save_report: bool = True,
+    search_agency: Any = None,
 ) -> Dict[str, Any]:
-    """Execute deep research, return dict with final_report and paragraphs."""
+    """Execute deep research, return dict with final_report and paragraphs.
+
+    search_agency: 可注入的 ProductReviewDB（评测系统用于 fixture 回放 DB 调用）。
+    缺省为 None，由 ReviewContext 内部构建。
+    """
     logger.info(f"\n{'=' * 60}\n开始深度研究: {query}\n{'=' * 60}")
 
-    ctx = ReviewContext(
-        llm_client=llm_client,
-        config=config,
-        progress_callback=progress_callback,
-    )
+    ctx_kwargs: Dict[str, Any] = {
+        "llm_client": llm_client,
+        "config": config,
+        "progress_callback": progress_callback,
+    }
+    if search_agency is not None:
+        ctx_kwargs["search_agency"] = search_agency
+    ctx = ReviewContext(**ctx_kwargs)
 
     # 快速检查本地电商数据库是否有数据。
     # 注意区分两件事：
