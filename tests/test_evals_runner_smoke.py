@@ -8,13 +8,13 @@ from app.utils import forum_reader
 SMOKE = Path(__file__).resolve().parent.parent / "evals" / "datasets" / "smoke.yaml"
 
 
-def _run_smoke(tmp_path, monkeypatch):
+def _run_smoke(tmp_path, monkeypatch, arms="subsets"):
     import evals.runner as runner
     import evals.workspace as ws_mod
 
     monkeypatch.setattr(ws_mod, "_EVAL_ROOT", tmp_path)
     try:
-        rc = runner.main(["--dataset", str(SMOKE), "--arms", "subsets", "--repeat", "1"])
+        rc = runner.main(["--dataset", str(SMOKE), "--arms", arms, "--repeat", "1"])
     finally:
         forum_reader.set_host_feedback_enabled(True)
     assert rc == 0
@@ -45,6 +45,33 @@ def test_runner_smoke_coverage_reflects_subset(tmp_path, monkeypatch):
     s3_r = by_key[("R", "smoke-s3-001")]["metrics"]["coverage"]
     assert s3 == 1.0
     assert s3_r == 1 / 3
+
+
+def test_runner_smoke_single_arms_cover_all_channels(tmp_path, monkeypatch):
+    ws = _run_smoke(tmp_path, monkeypatch, arms="single")
+    arm_runs = _load(ws / "runs.jsonl")
+    arms = {r["arm"] for r in arm_runs}
+    assert arms == {"single_merged", "single_selfreflect"}
+    s3_merged = [r for r in arm_runs if r["arm"] == "single_merged" and r["query_id"] == "smoke-s3-001"][0]
+    assert s3_merged["metrics"]["coverage"] == 1.0
+
+
+def test_runner_smoke_all_arms(tmp_path, monkeypatch):
+    ws = _run_smoke(tmp_path, monkeypatch, arms="all")
+    arm_runs = _load(ws / "runs.jsonl")
+    arms = {r["arm"] for r in arm_runs}
+    assert {"R", "RCT", "single_merged", "single_selfreflect"} <= arms
+
+
+def test_report_with_single_arms_does_not_crash(tmp_path, monkeypatch):
+    ws = _run_smoke(tmp_path, monkeypatch, arms="all")
+    import evals.report as report
+    from evals.types import ArmRun
+
+    arm_runs = [ArmRun.from_dict(r) for r in _load(ws / "runs.jsonl")]
+    text = report.build_report_text("t", _FakeWS(ws, arm_runs), _iter_items())
+    assert "single_merged" in text
+    assert "Q1：多 Agent vs 单 Agent" in text
 
 
 def test_report_generates_stratified_shapley(tmp_path, monkeypatch):

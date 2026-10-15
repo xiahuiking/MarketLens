@@ -65,6 +65,26 @@ def report_fn(query: str, reports: list, config, forum_logs: str = "") -> dict:
     }
 
 
+def run_single_engine_fn(
+    arm_name: str,
+    query: str,
+    config,
+    llm_client,
+    search_agency=None,
+    review_db=None,
+    progress_callback=None,
+    max_reflections: int = 0,
+) -> dict:
+    """单 Agent 基线（smoke）：返回覆盖三通道的报告，证明合并 Agent 能拿到全部证据。"""
+    report = "\n\n".join(_ENGINE_REPORTS[e] for e in ("review", "competitor", "trend"))
+    return {
+        "final_report": report,
+        "report_title": f"{arm_name} report",
+        "is_completed": True,
+        "paragraphs": [],
+    }
+
+
 def make_engine_runner() -> Callable:
     return run_engine_fn
 

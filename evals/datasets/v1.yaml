@@ -1,0 +1,29 @@
+# MarketLens 评测数据集 v1（模板）
+#
+# 完整 23 query 数据集 = 自动化采样 + 人工 curation：
+#   - S1/S5 由 `python -m evals.datasets.generate` 从 DB 采样生成；
+#   - S2/S3/S4 需要人工甄别「评论与网页信息是否一致/冲突」（DESIGN 4.2）。
+# 这里只放两个样例条目，说明 schema；真实数据按 generate.py 输出回填。
+items:
+  - id: s1-example-001
+    stratum: S1
+    query: "某评论充足的商品标题"
+    entity: { type: product, asin: B000000000 }
+    required_findings:
+      - id: f1
+        statement: "平均评分落在 4.0 至 4.4 之间"
+        channel_policy: only-review
+        verify:
+          kind: db_query
+          sql: "SELECT AVG(rating) FROM review WHERE parent_asin='B000000000'"
+          tolerance: 0.2
+    conflicts: []
+    expect: report
+
+  - id: s5-example-001
+    stratum: S5
+    query: "一个库中不存在的长尾品类词"
+    entity: { type: product, asin: NONEXISTENT }
+    required_findings: []
+    conflicts: []
+    expect: abstain

@@ -19,6 +19,9 @@ from .datasets import load_dataset
 from .types import ArmRun, EngineRun
 from .workspace import Workspace
 
+# 单 Agent 基线：arm 名 → max_reflections（single_merged=0 无反思；single_selfreflect=2 烧预算）
+SINGLE_ARMS = {"single_merged": 0, "single_selfreflect": 2}
+
 # 客观指标全集（coverage_by_channel 返回 dict，其余返回 float）
 METRIC_FNS = {
     "coverage": metrics.coverage,
@@ -79,6 +82,28 @@ def _report_runner_factory(live: bool, ws: Workspace, model, base_url, api_key):
 
     from .datasets.fixtures.smoke import dispatcher
     return lambda query, reports: dispatcher.report_fn(query, reports, None)
+
+
+def _single_engine_runner_factory(live: bool, ws: Workspace, model, base_url, api_key):
+    if live:
+        def run_one(arm_name, query):
+            mr = SINGLE_ARMS[arm_name]
+            config = eng.build_single_config(ws.engines_dir / arm_name, model, base_url, api_key)
+            llm = eng.build_llm_client("competitor", config)
+            agency = eng.build_search_agency("competitor", config)
+            from engines.ReviewEngine.tools.search import ProductReviewDB
+            review_db = ProductReviewDB()
+            result, summary = eng.run_single_engine_with_usage(
+                arm_name, query, config, llm, agency, review_db, mr
+            )
+            return result, summary
+        return run_one
+
+    from .datasets.fixtures.smoke import dispatcher
+
+    def run_one(arm_name, query):
+        return dispatcher.run_single_engine_fn(arm_name, query, None, None), {}
+    return run_one
 
 
 def get_or_run_engine(
@@ -149,48 +174,75 @@ def run(parsed) -> int:
 
     for item in items:
         for repeat in range(parsed.repeat):
-            # 先确保该 query 的三个引擎跑（缓存复用，7 个子集只实跑 3 次）
-            engine_runs: dict = {}
-            for eng_name in ("review", "competitor", "trend"):
-                engine_runs[eng_name] = get_or_run_engine(
-                    item.id, eng_name, repeat, model, ws, engine_runner
+            if parsed.arms in ("subsets", "all"):
+                # 先确保该 query 的三个引擎跑（缓存复用，7 个子集只实跑 3 次）
+                engine_runs: dict = {}
+                for eng_name in ("review", "competitor", "trend"):
+                    engine_runs[eng_name] = get_or_run_engine(
+                        item.id, eng_name, repeat, model, ws, engine_runner
+                    )
+
+                for arm, engines_list in SUBSETS.items():
+                    arm_key = caching.arm_cache_key(item.id, arm, repeat, model)
+                    cached_arm = caching.load_arm_run(ws.cache_dir, arm_key)
+                    if cached_arm is not None and not parsed.live:
+                        arm_run = cached_arm
+                    else:
+                        slots = compose_reports({
+                            e: engine_runs[e].final_report for e in engines_list
+                        })
+                        try:
+                            report = report_runner(item.query, slots)
+                        except Exception as exc:
+                            report = {"document_ir": {}, "final_report_md": "", "error": str(exc)}
+
+                        arm_run = ArmRun(
+                            query_id=item.id,
+                            arm=arm,
+                            host_mode="off",
+                            repeat=repeat,
+                            engines=engines_list,
+                            forum_log="",
+                            final_report_md=report.get("final_report_md", ""),
+                            document_ir=report.get("document_ir", {}),
+                            tokens_in=sum(engine_runs[e].tokens_in for e in engines_list),
+                            tokens_out=sum(engine_runs[e].tokens_out for e in engines_list),
+                            cost=_sum_cost(engine_runs[e] for e in engines_list),
+                            llm_calls=sum(engine_runs[e].llm_calls for e in engines_list),
+                            wall_ms=sum(engine_runs[e].wall_ms for e in engines_list),
+                            error=report.get("error"),
+                        )
+                        caching.save_arm_run(ws.cache_dir, arm_key, arm_run)
+
+                    subset_runs = {e: engine_runs[e] for e in engines_list}
+                    arm_run.metrics = compute_metrics(item, arm_run, subset_runs)
+                    ws.append_arm_run(arm_run)
+
+            if parsed.arms in ("single", "all"):
+                single_runner = _single_engine_runner_factory(
+                    parsed.live, ws, model, base_url, api_key
                 )
-
-            for arm, engines_list in SUBSETS.items():
-                arm_key = caching.arm_cache_key(item.id, arm, repeat, model)
-                cached_arm = caching.load_arm_run(ws.cache_dir, arm_key)
-                if cached_arm is not None and not parsed.live:
-                    arm_run = cached_arm
-                else:
-                    slots = compose_reports({
-                        e: engine_runs[e].final_report for e in engines_list
-                    })
-                    try:
-                        report = report_runner(item.query, slots)
-                    except Exception as exc:
-                        report = {"document_ir": {}, "final_report_md": "", "error": str(exc)}
-
+                for arm_name in SINGLE_ARMS:
+                    single_run = get_or_run_engine(
+                        item.id, arm_name, repeat, model, ws, single_runner
+                    )
                     arm_run = ArmRun(
                         query_id=item.id,
-                        arm=arm,
+                        arm=arm_name,
                         host_mode="off",
                         repeat=repeat,
-                        engines=engines_list,
+                        engines=[arm_name],
                         forum_log="",
-                        final_report_md=report.get("final_report_md", ""),
-                        document_ir=report.get("document_ir", {}),
-                        tokens_in=sum(engine_runs[e].tokens_in for e in engines_list),
-                        tokens_out=sum(engine_runs[e].tokens_out for e in engines_list),
-                        cost=_sum_cost(engine_runs[e] for e in engines_list),
-                        llm_calls=sum(engine_runs[e].llm_calls for e in engines_list),
-                        wall_ms=sum(engine_runs[e].wall_ms for e in engines_list),
-                        error=report.get("error"),
+                        final_report_md=single_run.final_report,
+                        document_ir={},
+                        tokens_in=single_run.tokens_in,
+                        tokens_out=single_run.tokens_out,
+                        cost=single_run.cost,
+                        llm_calls=single_run.llm_calls,
+                        wall_ms=single_run.wall_ms,
                     )
-                    caching.save_arm_run(ws.cache_dir, arm_key, arm_run)
-
-                subset_runs = {e: engine_runs[e] for e in engines_list}
-                arm_run.metrics = compute_metrics(item, arm_run, subset_runs)
-                ws.append_arm_run(arm_run)
+                    arm_run.metrics = compute_metrics(item, arm_run, {arm_name: single_run})
+                    ws.append_arm_run(arm_run)
 
     return 0
 
@@ -240,7 +292,7 @@ def metrics_only(parsed) -> int:
 def main(argv=None) -> int:
     p = argparse.ArgumentParser(prog="evals.runner")
     p.add_argument("--dataset", required=True)
-    p.add_argument("--arms", default="subsets", choices=["subsets"])
+    p.add_argument("--arms", default="subsets", choices=["subsets", "single", "all"])
     p.add_argument("--repeat", type=int, default=1)
     p.add_argument("--live", action="store_true")
     p.add_argument("--metrics-only", action="store_true")

@@ -35,6 +35,8 @@ def build_value_function(arm_runs: list, metric: str) -> dict:
     """按臂聚合某指标，构造 {frozenset(engines): float}，并补 V(∅)=0。"""
     by_arm = defaultdict(list)
     for r in arm_runs:
+        if r.arm not in SUBSETS:  # 单 Agent 臂不参与 Shapley（那是 Q1 对比，不是子集贡献）
+            continue
         m = r.metrics.get(metric) if isinstance(r.metrics, dict) else None
         if m is not None:
             by_arm[r.arm].append(m)
@@ -76,6 +78,19 @@ def build_report_text(run_id: str, ws: Workspace, items: list) -> str:
             rows = [r for r in arm_runs if r.query_id in qids]
             lines.append(f"| {stratum} | {_stratum_rows(rows, metric)} |")
         lines.append("")
+
+    lines.append("## Q1：多 Agent vs 单 Agent（coverage）")
+    lines.append("")
+    lines.append("| 分层 | V(RCT) | V(single_merged) | V(single_selfreflect) |")
+    lines.append("|---|---|---|---|")
+    for stratum, stratum_items in strata.items():
+        qids = {i.id for i in stratum_items}
+        rows = [r for r in arm_runs if r.query_id in qids]
+        rct = _mean([r.metrics.get("coverage") for r in rows if r.arm == "RCT" and r.metrics.get("coverage") is not None])
+        sm = _mean([r.metrics.get("coverage") for r in rows if r.arm == "single_merged" and r.metrics.get("coverage") is not None])
+        ss = _mean([r.metrics.get("coverage") for r in rows if r.arm == "single_selfreflect" and r.metrics.get("coverage") is not None])
+        lines.append(f"| {stratum} | {rct:.3f} | {sm:.3f} | {ss:.3f} |")
+    lines.append("")
 
     lines.append("## 预测 vs 实测（答案键自检）")
     lines.append("")

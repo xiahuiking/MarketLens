@@ -192,6 +192,56 @@ def run_report(
     }
 
 
+def build_single_config(output_dir: Path, model=None, base_url=None, api_key=None) -> Settings:
+    """单 Agent 基线的 Settings：同时带网络检索键与 DB 键。"""
+    s = _cfg.settings
+    return Settings(
+        COMPETITOR_ENGINE_API_KEY=api_key or s.COMPETITOR_ENGINE_API_KEY,
+        COMPETITOR_ENGINE_BASE_URL=base_url or s.COMPETITOR_ENGINE_BASE_URL,
+        COMPETITOR_ENGINE_MODEL_NAME=model or s.COMPETITOR_ENGINE_MODEL_NAME,
+        SEARCH_TOOL_TYPE=s.SEARCH_TOOL_TYPE,
+        TAVILY_API_KEY=s.TAVILY_API_KEY,
+        BOCHA_WEB_SEARCH_API_KEY=s.BOCHA_WEB_SEARCH_API_KEY,
+        ANSPIRE_API_KEY=s.ANSPIRE_API_KEY,
+        DB_HOST=s.DB_HOST, DB_USER=s.DB_USER, DB_PASSWORD=s.DB_PASSWORD,
+        DB_NAME=s.DB_NAME, DB_PORT=s.DB_PORT, DB_CHARSET=s.DB_CHARSET,
+        DB_DIALECT=s.DB_DIALECT,
+        MAX_REFLECTIONS=s.MAX_REFLECTIONS,
+        MAX_CONTENT_LENGTH=s.MAX_CONTENT_LENGTH,
+        SEARCH_CONTENT_MAX_LENGTH=s.SEARCH_CONTENT_MAX_LENGTH,
+        OUTPUT_DIR=str(output_dir),
+    )
+
+
+def run_single_engine(
+    arm_name: str,
+    query: str,
+    config: Settings,
+    llm_client,
+    search_agency,
+    review_db=None,
+    max_reflections: int = 0,
+) -> dict:
+    """跑单 Agent 基线（evals.arms.single）。"""
+    from evals.arms.single.agent import run_research
+    return run_research(
+        query, config, llm_client, search_agency,
+        review_db=review_db, save_report=True, max_reflections=max_reflections,
+    )
+
+
+def run_single_engine_with_usage(arm_name, query, config, llm_client, search_agency,
+                                 review_db=None, max_reflections=0) -> tuple:
+    run_id = usage.new_run_id("eval-single")
+    usage.set_active_run(run_id)
+    usage.set_usage_context(run_id=run_id, engine="single")
+    usage.ensure_run(run_id, query=query)
+    result = run_single_engine(arm_name, query, config, llm_client, search_agency,
+                               review_db, max_reflections)
+    summary = usage.get_run_summary(run_id) or {}
+    return result, summary
+
+
 def build_report_config(output_dirs: dict, model=None, base_url=None, api_key=None) -> Settings:
     """构建 ReportEngine Settings：钉死模型 + 三个输出目录指向 workspace。"""
     s = _cfg.settings
